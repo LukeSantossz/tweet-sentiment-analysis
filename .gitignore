@@ -47,7 +47,6 @@ Thumbs.db
 desktop.ini
 
 # Data & Models (large files)
-data/
 models/
 *.h5
 *.pkl
