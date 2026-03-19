@@ -4,7 +4,7 @@ import emoji
 def remove_urls(text: str) -> str:
     """Remove URLs http/https."""
     url_pattern = r'https?://\S+'
-    return re.sub(url_pattern, '', text).strip()
+    return re.sub(url_pattern, '[URL]', text).strip()
 
 def remove_mentions(text: str) -> str:
     """Substitui @usuario por token @user."""
