@@ -5,8 +5,9 @@
 env/
 ENV/
 
-# Claude Code
+# AI
 .claude
+tutor.md
 
 # Python
 __pycache__/
