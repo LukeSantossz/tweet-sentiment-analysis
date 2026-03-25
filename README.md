@@ -1,111 +1,103 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
-![Framework](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
+![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
 # tweet-sentiment-analysis
 
-## O que é este projeto?
+> Sentiment classification pipeline for tweets using Hugging Face Transformers and the TweetEval benchmark.
 
-Pipeline de classificação de sentimento em tweets utilizando a biblioteca Hugging Face Transformers e o benchmark TweetEval. O modelo é treinado sobre o dataset público `cardiffnlp/tweet_eval` — com tweets rotulados em três classes: negativo, neutro e positivo — e avaliado com as métricas padrão do benchmark.
+## Overview
 
-## Por que ele existe?
+Tweets have distinct linguistic patterns compared to formal text — abbreviations, slang, mentions, hashtags, and emojis make sentiment analysis a non-trivial problem for generic NLP models. This project addresses that gap by fine-tuning a social-media-specialized transformer on the `cardiffnlp/tweet_eval` dataset (negative / neutral / positive) and evaluating it against the TweetEval benchmark baseline.
 
-Tweets possuem padrões linguísticos distintos de textos formais: abreviações, gírias, menções, hashtags e emojis tornam a análise de sentimento um problema não trivial para modelos genéricos de NLP. Este projeto aborda essa lacuna aplicando modelos pré-treinados especializados em linguagem de redes sociais ao dataset TweetEval, viabilizando inferência de sentimento de alta fidelidade em dados reais do Twitter/X.
+## Tech Stack
 
-## Como funciona?
+| Layer | Technology |
+|-------|-----------|
+| Dataset | `cardiffnlp/tweet_eval` (Hugging Face Datasets) |
+| Model | BERT/RoBERTa family (`cardiffnlp/twitter-roberta-base-sentiment`) |
+| Training | Hugging Face `Trainer` API |
+| Preprocessing | Custom `src/preprocessing.py` + `emoji` library |
+| Evaluation | `scikit-learn` (accuracy, macro F1) |
+| Visualization | `matplotlib`, `seaborn` |
+| Acceleration | PyTorch + CUDA (optional) |
 
-O pipeline é composto pelas seguintes etapas:
+## Getting Started
 
-1. **Ingestão de dados** — carregamento do split `sentiment` do dataset `cardiffnlp/tweet_eval` via biblioteca `datasets` (Hugging Face), com divisão explícita em `train`, `test` e `validation`.
+### Prerequisites
 
-2. **Análise exploratória (EDA)** — verificação da distribuição de classes por split, identificação de desbalanceamento e inspeção de amostras representativas por meio de visualizações com `matplotlib` e `seaborn`.
-
-3. **Pré-processamento e tokenização** — limpeza do texto (normalização de menções, hashtags e URLs) e tokenização via tokenizador nativo do modelo transformer selecionado.
-
-4. **Fine-tuning** — ajuste fino de um modelo pré-treinado da família BERT/RoBERTa usando a API `Trainer` da biblioteca `transformers`, com suporte a GPU via `torch`.
-
-5. **Avaliação** — métricas de classificação (accuracy e F1 macro) calculadas via `scikit-learn` e comparadas ao baseline do benchmark TweetEval.
-
-> **Modelo-alvo:** transformer pré-treinado em dados de redes sociais (ex.: `cardiffnlp/twitter-roberta-base-sentiment`), a ser fixado na etapa de experimentação.
-
-## Como instalar e executar?
-
-### Pré-requisitos
-
-- Python 3.10 ou superior
+- Python 3.10 or higher
 - pip
-- (Opcional) CUDA 11.x ou superior para aceleração em GPU
+- (Optional) CUDA 11.x or higher for GPU acceleration
 
-### Instalação
+### Installation
 
 ```bash
-# Clone o repositório
-git clone https://github.com/<usuario>/tweet-sentiment-analysis.git
+# Clone the repository
+git clone https://github.com/<username>/tweet-sentiment-analysis.git
 cd tweet-sentiment-analysis
 
-# Crie e ative o ambiente virtual
+# Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate            # Linux / macOS
-venv\Scripts\activate                # Windows
+source venv/bin/activate   # Linux / macOS
+venv\Scripts\activate       # Windows
 
-# Instale as dependências
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Execução dos notebooks
+### Running
 
 ```bash
-# Inicie o servidor Jupyter
+# Start the Jupyter server
 jupyter notebook
 
-# Abra os notebooks na seguinte ordem:
-# notebooks/01_eda.ipynb               - analise exploratoria do dataset
-# notebooks/02_tokenization.ipynb      - pre-processamento e tokenizacao
+# Open notebooks in order:
+# notebooks/01_eda.ipynb            - dataset exploratory analysis
+# notebooks/02_tokenization.ipynb   - preprocessing and tokenization
 ```
 
-### Variáveis de ambiente
+**Environment variables:**
 
-| Variável | Descrição | Padrão |
-|---|---|---|
-| `HF_DATASETS_CACHE` | Diretório de cache do Hugging Face Datasets | `~/.cache/huggingface/datasets` |
-| `TRANSFORMERS_CACHE` | Diretório de cache dos modelos pré-treinados | `~/.cache/huggingface/transformers` |
-| `CUDA_VISIBLE_DEVICES` | Índice(s) da(s) GPU(s) disponíveis | `0` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HF_DATASETS_CACHE` | Hugging Face Datasets cache directory | `~/.cache/huggingface/datasets` |
+| `TRANSFORMERS_CACHE` | Pre-trained model cache directory | `~/.cache/huggingface/transformers` |
+| `CUDA_VISIBLE_DEVICES` | GPU index(es) to use | `0` |
 
-## Como está organizado?
+## Project Structure
 
 ```
 tweet-sentiment-analysis/
-+-- notebooks/
-|   +-- 01_eda.ipynb              # EDA: distribuicao de classes nos splits train/test/validation
-|   +-- 02_tokenization.ipynb     # Pre-processamento e tokenizacao dos tweets
-+-- src/
-|   +-- __init__.py               # Inicializacao do pacote
-|   +-- preprocessing.py          # Funcoes de limpeza e normalizacao de texto (em desenvolvimento)
-+-- tests/
-|   +-- tests_preprocessing.py    # Testes unitarios do modulo de pre-processamento (em desenvolvimento)
-+-- venv/                         # Ambiente virtual local (excluido do versionamento)
-+-- .gitignore
-+-- requirements.txt              # Dependencias do projeto
-+-- README.md
+├── notebooks/
+│   ├── 01_eda.ipynb              # EDA: class distribution across train/test/validation splits
+│   └── 02_tokenization.ipynb     # Preprocessing and tokenization
+├── src/
+│   ├── __init__.py
+│   └── preprocessing.py          # Text cleaning and normalization functions
+├── tests/
+│   └── test_preprocessing.py     # Unit tests for the preprocessing module
+├── venv/                          # Local virtual environment (not versioned)
+├── .gitignore
+├── requirements.txt
+└── README.md
 ```
 
-## Qual é o estado atual?
+## Current Status
 
-**Status: Em desenvolvimento — Sprint inicial**
+**Status: In development — initial sprint**
 
-| Etapa | Status |
-|---|---|
-| EDA e análise de distribuição de classes | Concluído |
-| Notebook de tokenização | Em andamento |
-| Módulo `src/preprocessing.py` | Em andamento |
-| Testes unitários de pré-processamento | Pendente |
-| Fine-tuning do modelo transformer | Pendente |
-| Avaliação final e métricas do benchmark | Pendente |
+| Stage | Status |
+|-------|--------|
+| EDA and class distribution analysis | Done ✅ |
+| Tokenization notebook | Done ✅ |
+| `src/preprocessing.py` module | Done ✅ |
+| Preprocessing unit tests | Done ✅ |
+| Transformer model fine-tuning | Pending ⏳ |
+| Final evaluation and benchmark metrics | Pending ⏳ |
 
-**Próximos passos:**
+**Next steps:**
 
-1. Implementar e testar o módulo `src/preprocessing.py` com funções de limpeza (menções, URLs, hashtags)
-2. Concluir o notebook de tokenização integrando o tokenizador do modelo selecionado
-3. Estruturar o script de treinamento com a API `Trainer` do Hugging Face
-4. Definir protocolo de avaliação e experimento de baseline
-5. Documentar resultados e comparar com o leaderboard do TweetEval
+1. Structure the training script using the Hugging Face `Trainer` API
+2. Define the evaluation protocol and baseline experiment
+3. Document results and compare against the TweetEval leaderboard
