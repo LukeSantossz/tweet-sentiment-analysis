@@ -89,12 +89,12 @@ tweet-sentiment-analysis/
 
 | Stage | Status |
 |-------|--------|
-| EDA and class distribution analysis | Done ✅ |
-| Tokenization notebook | Done ✅ |
-| `src/preprocessing.py` module | Done ✅ |
-| Preprocessing unit tests | Done ✅ |
-| Transformer model fine-tuning | Pending ⏳ |
-| Final evaluation and benchmark metrics | Pending ⏳ |
+| EDA and class distribution analysis | Done [x] |
+| Tokenization notebook | Done [x] |
+| `src/preprocessing.py` module | Done [x] |
+| Preprocessing unit tests | Done [x] |
+| Transformer model fine-tuning | Pending [ ] |
+| Final evaluation and benchmark metrics | Pending [ ] |
 
 **Next steps:**
 
