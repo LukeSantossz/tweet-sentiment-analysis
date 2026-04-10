@@ -71,6 +71,8 @@ logs/
 .env
 .env.local
 *.env
+/notebooks/baseline/
+baseline/
 
 # HuggingFace cache
 .huggingface/
