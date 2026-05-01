@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Hook: pre-push
+# 1. Valida formato da branch e task ativa em tasks.md
+# 2. Verifica se tasks concluidas nos commits possuem entrada no registry.md
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+TASKS_FILE="$REPO_ROOT/.claude/tasks.md"
+REGISTRY_FILE="$REPO_ROOT/.claude/registry.md"
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Permitir push direto para main e dev
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "dev" ] || [ "$BRANCH" = "master" ]; then
+    # Mesmo em branches principais, validar registry para commits sendo enviados
+    :
+else
+    VALID_TYPES="feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+
+    # --- 1. Validar formato da branch ---
+    if ! echo "$BRANCH" | grep -qE "^($VALID_TYPES)/TASK-[0-9]+-[a-z0-9-]+$"; then
+        echo "AVISO [pre-push]: Branch nao segue o formato esperado."
+        echo "  Esperado: type/TASK-NNN-descricao-curta"
+        echo "  Atual: $BRANCH"
+        echo ""
+    fi
+
+    # Extrair TASK-NNN da branch
+    TASK_ID=$(echo "$BRANCH" | grep -oE "TASK-[0-9]+" 2>/dev/null)
+
+    if [ -n "$TASK_ID" ] && [ -f "$TASKS_FILE" ]; then
+        if ! grep -q "### $TASK_ID" "$TASKS_FILE" 2>/dev/null; then
+            echo "AVISO [pre-push]: $TASK_ID nao encontrada em tasks.md."
+            echo "  Registre a task antes de fazer push."
+        fi
+    fi
+fi
+
+# --- 2. Validar registry para tasks concluidas ---
+
+if [ ! -f "$REGISTRY_FILE" ]; then
+    echo "AVISO [pre-push]: registry.md nao encontrado."
+    echo "  Verifique se o registro de projeto esta atualizado."
+    exit 0
+fi
+
+# Ler stdin para obter os refs sendo enviados
+MISSING_REGISTRY=""
+while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+    # Se remote sha e zero, e um novo branch — comparar com merge-base de main
+    if echo "$REMOTE_SHA" | grep -qE '^0+$'; then
+        BASE=$(git merge-base HEAD main 2>/dev/null || git merge-base HEAD dev 2>/dev/null)
+        if [ -z "$BASE" ]; then
+            continue
+        fi
+        RANGE="$BASE..$LOCAL_SHA"
+    else
+        RANGE="$REMOTE_SHA..$LOCAL_SHA"
+    fi
+
+    # Extrair TASK-NNN de mensagens de commit no range
+    TASK_REFS=$(git log --format="%s" "$RANGE" 2>/dev/null | grep -oE "TASK-[0-9]+" | sort -u 2>/dev/null)
+
+    for TASK in $TASK_REFS; do
+        # Verificar se a task esta marcada como concluida em tasks.md
+        TASK_IN_COMPLETED=$(sed -n '/^## Tasks Concluidas/,/^## Tasks Descartadas/p' "$TASKS_FILE" 2>/dev/null | grep -c "### $TASK" 2>/dev/null)
+
+        if [ "$TASK_IN_COMPLETED" -gt 0 ]; then
+            # Task concluida — verificar se tem entrada no registry
+            if ! grep -q "$TASK" "$REGISTRY_FILE" 2>/dev/null; then
+                MISSING_REGISTRY="$MISSING_REGISTRY\n  $TASK"
+            fi
+        fi
+    done
+done
+
+if [ -n "$MISSING_REGISTRY" ]; then
+    echo "AVISO [pre-push]: Tasks concluidas sem entrada no registry.md:"
+    echo -e "$MISSING_REGISTRY"
+    echo ""
+    echo "Atualize o registry.md antes de fazer push."
+    echo "Use --no-verify para ignorar (documente a justificativa)."
+fi
+
+exit 0

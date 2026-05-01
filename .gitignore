@@ -8,14 +8,6 @@ data/
 env/
 ENV/
 
-# AI
-.claude
-CLAUDE.md
-
-# Miscellaneous
-review.md
-tutor.md
-
 # Python
 __pycache__/
 *.py[cod]
