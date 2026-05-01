@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # Hook: pre-commit
-# Verifica debug statements nos arquivos staged
+# 1. Verifica debug statements nos arquivos staged
+# 2. Valida se arquivos staged estao no escopo da task ativa (tasks.md)
 # Patterns configuraveis via .claude/enforcement.conf
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 CONF_FILE="$REPO_ROOT/.claude/enforcement.conf"
+TASKS_FILE="$REPO_ROOT/.claude/tasks.md"
 
-# Patterns padrao se enforcement.conf nao existir
+# --- 1. Verificacao de debug statements ---
+
 DEFAULT_PATTERNS="console\.log|console\.debug|console\.warn|debugger|print\(|pdb\.set_trace|breakpoint\(\)|import pdb"
 
 if [ -f "$CONF_FILE" ]; then
-    # Ler patterns do arquivo (linhas nao vazias e nao comentadas)
     PATTERNS=$(grep -v '^#' "$CONF_FILE" | grep -v '^$' | tr '\n' '|' | sed 's/|$//')
     if [ -z "$PATTERNS" ]; then
         PATTERNS="$DEFAULT_PATTERNS"
@@ -19,7 +21,6 @@ else
     PATTERNS="$DEFAULT_PATTERNS"
 fi
 
-# Obter arquivos staged (apenas adicionados ou modificados)
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
 
 if [ -z "$STAGED_FILES" ]; then
@@ -29,19 +30,16 @@ fi
 FOUND_ISSUES=0
 
 for FILE in $STAGED_FILES; do
-    # Ignorar arquivos binarios, de config e hooks
     case "$FILE" in
         *.md|*.json|*.yml|*.yaml|*.toml|*.cfg|*.conf|*.ini|*.txt|*.csv|*.lock|.claude/hooks/*|.gitignore)
             continue
             ;;
     esac
 
-    # Verificar se o arquivo existe (pode ter sido deletado)
     if [ ! -f "$FILE" ]; then
         continue
     fi
 
-    # Buscar patterns no conteudo staged (nao no working tree)
     MATCHES=$(git diff --cached -U0 "$FILE" 2>/dev/null | grep '^+' | grep -v '^+++' | grep -nE "$PATTERNS" 2>/dev/null)
 
     if [ -n "$MATCHES" ]; then
@@ -62,6 +60,86 @@ if [ "$FOUND_ISSUES" -eq 1 ]; then
     echo "Remova os debug statements antes de commitar."
     echo "Use --no-verify para ignorar (documente a justificativa)."
     exit 1
+fi
+
+# --- 2. Verificacao de escopo da task ativa ---
+
+if [ ! -f "$TASKS_FILE" ]; then
+    # Sem tasks.md, nao ha como validar — warning e segue
+    echo "AVISO [pre-commit]: tasks.md nao encontrado, validacao de escopo ignorada."
+    exit 0
+fi
+
+# Extrair a primeira task ativa (primeira ocorrencia de ### TASK- apos "## Tasks Ativas")
+ACTIVE_SECTION=$(sed -n '/^## Tasks Ativas/,/^## Tasks Concluidas/p' "$TASKS_FILE" 2>/dev/null)
+
+if [ -z "$ACTIVE_SECTION" ]; then
+    exit 0
+fi
+
+# Extrair o bloco da primeira task ativa (ate o proximo ### ou fim de secao)
+FIRST_TASK_BLOCK=$(echo "$ACTIVE_SECTION" | sed -n '/^### TASK-/,/^---$/p' | head -80)
+
+if [ -z "$FIRST_TASK_BLOCK" ]; then
+    exit 0
+fi
+
+# Extrair paths do campo "Arquivos/modulos envolvidos"
+SCOPE_LINE=$(echo "$FIRST_TASK_BLOCK" | grep -i "Arquivos/modulos envolvidos" 2>/dev/null)
+
+if [ -z "$SCOPE_LINE" ]; then
+    # Campo nao encontrado — formato inesperado, warning e segue
+    exit 0
+fi
+
+# Extrair paths entre backticks
+SCOPE_PATHS=$(echo "$SCOPE_LINE" | grep -oE '`[^`]+`' | sed 's/`//g' 2>/dev/null)
+
+if [ -z "$SCOPE_PATHS" ]; then
+    exit 0
+fi
+
+# Verificar cada arquivo staged contra o escopo
+OUT_OF_SCOPE=""
+for FILE in $STAGED_FILES; do
+    # Ignorar arquivos .claude/ (governanca, sempre permitidos)
+    case "$FILE" in
+        .claude/*) continue ;;
+    esac
+
+    IN_SCOPE=0
+    for SCOPE in $SCOPE_PATHS; do
+        # Verificar match exato ou se o arquivo esta dentro do diretorio declarado
+        if [ "$FILE" = "$SCOPE" ]; then
+            IN_SCOPE=1
+            break
+        fi
+        # Verificar se SCOPE e um diretorio e o arquivo esta dentro
+        case "$FILE" in
+            ${SCOPE}/*) IN_SCOPE=1; break ;;
+        esac
+        # Verificar se o arquivo esta no mesmo diretorio/modulo
+        SCOPE_DIR=$(dirname "$SCOPE" 2>/dev/null)
+        FILE_DIR=$(dirname "$FILE" 2>/dev/null)
+        if [ "$SCOPE_DIR" = "$FILE_DIR" ] && [ "$SCOPE_DIR" != "." ]; then
+            IN_SCOPE=1
+            break
+        fi
+    done
+
+    if [ "$IN_SCOPE" -eq 0 ]; then
+        OUT_OF_SCOPE="$OUT_OF_SCOPE\n  $FILE"
+    fi
+done
+
+if [ -n "$OUT_OF_SCOPE" ]; then
+    echo "AVISO [pre-commit]: Arquivos staged fora do escopo da task ativa:"
+    echo -e "$OUT_OF_SCOPE"
+    echo ""
+    echo "Escopo declarado: $SCOPE_PATHS"
+    echo "Verifique se estes arquivos pertencem a task atual."
+    echo "Use --no-verify para ignorar (documente a justificativa)."
+    # Warning, nao bloqueante — pode haver razao legitima
 fi
 
 exit 0

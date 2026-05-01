@@ -26,6 +26,7 @@
 | 6 | 2026-03-30 | TASK-006 | minor | 1 arquivo — notebooks | aprovado | Baseline zero-shot: 70% acc, 0.71 F1 |
 | 7 | 2026-05-01 | TASK-014 | major | 3 arquivos — .claude/ | aprovado | Migracao de tasks para formato .claude |
 | 8 | 2026-05-01 | TASK-000 | major | 7 arquivos — .claude/hooks/, enforcement.conf, templates | aprovado | Bootstrap: hooks, enforcement.conf, templates |
+| 9 | 2026-05-01 | TASK-015 | minor | 2 arquivos — .claude/hooks/ | aprovado | Correcao: validacao de escopo e registry nos hooks |
 
 ## Estado da Codebase
 
@@ -37,7 +38,7 @@
 - **Dependencias alteradas recentemente:** accelerate (adicionada em b224044)
 - **Testes passando:** sim — 20 testes (12 preprocessing + 8 training)
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-000 — Bootstrap do enforcement (hooks, templates)
+- **Ultima task concluida:** TASK-015 — Correcao de hooks pre-commit e pre-push
 
 ## Pendencias Conhecidas
 

@@ -335,6 +335,43 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
 
+### TASK-015
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-01
+
+#### Objetivo
+Corrigir hooks pre-commit e pre-push para implementar validacoes faltantes da regra 09.1.
+
+#### Contexto
+Auditoria pos-TASK-000 identificou dois desvios: (1) pre-commit nao valida se arquivos staged estao no escopo da task ativa; (2) pre-push nao verifica se tasks concluidas referenciadas nos commits possuem entrada no registry.md.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.claude/hooks/pre-commit`, `.claude/hooks/pre-push`
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** hooks existentes estendidos, comportamento anterior preservado
+
+#### Criterios de Aceite
+- [x] pre-commit valida se arquivos staged estao no Escopo Tecnico da task ativa em tasks.md
+- [x] pre-push valida se tasks concluidas nos commits possuem entrada no historico do registry.md
+- [x] Ambas as validacoes emitem warning (nao-bloqueante) em caso de duvida
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-01 | 1 | Implementacao das validacoes de escopo e registry | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-01
+- **Branch:** fix/TASK-015-corrigir-hooks-enforcement
+- **Commit(s):** pendente
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Validacao de escopo compara staged files contra campo Escopo Tecnico da task ativa. Validacao de registry extrai TASK-NNN dos commits e verifica presenca no historico. Arquivos .claude/ sao sempre permitidos no escopo.
+
+---
+
 ### TASK-000
 - **Status:** concluida
 - **Modo:** desenvolvimento
