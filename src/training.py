@@ -26,16 +26,15 @@ import argparse
 from typing import Dict
 
 import numpy as np
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    EarlyStoppingCallback,
     Trainer,
     TrainingArguments,
-    EarlyStoppingCallback,
 )
-
 
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
 DATASET_NAME = "tweet_eval"
@@ -74,6 +73,7 @@ def tokenize_dataset(dataset: DatasetDict, tokenizer) -> DatasetDict:
     Returns:
         Tokenized dataset ready for training
     """
+
     def tokenize_fn(examples):
         return tokenizer(
             examples["text"],
@@ -256,9 +256,7 @@ def train(
 
 def parse_args():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Fine-tune Twitter-RoBERTa on TweetEval sentiment dataset"
-    )
+    parser = argparse.ArgumentParser(description="Fine-tune Twitter-RoBERTa on TweetEval sentiment dataset")
     parser.add_argument(
         "--output_dir",
         type=str,

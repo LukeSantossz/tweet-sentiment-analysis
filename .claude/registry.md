@@ -28,6 +28,7 @@
 | 8 | 2026-05-01 | TASK-000 | major | 7 arquivos — .claude/hooks/, enforcement.conf, templates | aprovado | Bootstrap: hooks, enforcement.conf, templates |
 | 9 | 2026-05-01 | TASK-015 | minor | 2 arquivos — .claude/hooks/ | aprovado | Correcao: validacao de escopo e registry nos hooks |
 | 10 | 2026-05-01 | TASK-016 | minor | 1 arquivo — .claude/CLAUDE.md | aprovado | Diretrizes Karpathy integradas como secao obrigatoria |
+| 11 | 2026-05-01 | TASK-017 | minor | 7 arquivos — CI, config, src/, tests/ | aprovado | GitHub Actions CI com lint (ruff) e testes (pytest) |
 
 ## Estado da Codebase
 
@@ -35,11 +36,11 @@
 
 - **Ultima atualizacao:** 2026-05-01
 - **Ultimo responsavel:** agente
-- **Branch ativa:** dev
-- **Dependencias alteradas recentemente:** accelerate (adicionada em b224044)
-- **Testes passando:** sim — 20 testes (12 preprocessing + 8 training)
+- **Branch ativa:** ci/TASK-017-github-actions-ci
+- **Dependencias alteradas recentemente:** ruff, pytest (dev-only via requirements-dev.txt)
+- **Testes passando:** sim — 20 testes (12 preprocessing + 8 training), 1 slow deselected
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-016 — Diretrizes Karpathy integradas ao CLAUDE.md
+- **Ultima task concluida:** TASK-017 — GitHub Actions CI com lint e testes
 
 ## Pendencias Conhecidas
 
@@ -57,6 +58,8 @@
 - URLs substituidas por token [URL] no preprocessing (preserva informacao de presenca sem ruido)
 - Emojis convertidos via emoji.demojize() (transforma em texto descritivo legivel pelo tokenizador)
 - Early stopping com patience=2 no training (evitar overfitting)
+- Ruff: rules E/F/I, line-length=120, notebooks excluidos via extend-exclude (nao sao codigo de producao)
+- CI: torch CPU-only no pipeline para evitar download CUDA (~2GB); testes slow excluidos via marker
 
 ## Padroes Recorrentes Observados
 

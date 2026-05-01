@@ -83,6 +83,46 @@ A complexidade determina o nivel de cerimonia na avaliacao pos-implementacao (ve
 > Tasks em andamento ou pendentes de implementacao. O agente so pode trabalhar em tasks listadas aqui.
 > **Regra de ordenacao:** A primeira task listada e a task ativa. O agente trabalha nela ate conclusao, descarte ou bloqueio explicito pelo usuario. Para mudar a prioridade, o usuario reordena as tasks nesta secao.
 
+### TASK-017
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-01
+
+#### Objetivo
+Configurar pipeline CI com GitHub Actions para lint (ruff) e testes (pytest) em push/PR para main.
+
+#### Contexto
+Garantir que todo PR e push para main passe por lint e testes automatizados antes do merge. Pipeline minima sem Docker build (pertence a TASK-009/012). CI parcial antecipada da TASK-009.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.github/workflows/ci.yml`, `pyproject.toml`, `requirements-dev.txt`, `README.md`, `src/preprocessing.py`
+- **Dependencias necessarias:** ruff, pytest (dev-only)
+- **Impacto em funcionalidades existentes:** nenhum
+
+#### Criterios de Aceite
+- [x] Workflow CI com jobs lint e test configurado em .github/workflows/ci.yml
+- [x] pyproject.toml com config ruff (rules E/F/I, line-length=120, py310) e pytest markers
+- [x] requirements-dev.txt com ruff e pytest
+- [x] ruff check . e ruff format --check . passam sem erros
+- [x] pytest tests/ -m "not slow" -v passa
+- [x] Badge de CI visivel no README.md
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-01 | 1 | Implementacao completa: ci.yml, pyproject.toml, requirements-dev.txt, badge, formatting fixes | concluida |
+
+#### Resultado (preenchido ao concluir)
+- **Data de conclusao:** 2026-05-01
+- **Branch:** ci/TASK-017-github-actions-ci
+- **Commit(s):** 69f970c style(preprocessing): fix formatting for ruff compliance, dd1dc67 ci(actions): add GitHub Actions pipeline with lint and tests
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Notebooks excluidos do ruff via extend-exclude. Import sorting corrigido em src/ e tests/. Testes clean_tweet corrigidos (expectativa [URL] -> [url] por conta do to_lowercase no pipeline).
+
+---
+
 ### TASK-007
 - **Status:** em andamento
 - **Modo:** desenvolvimento
