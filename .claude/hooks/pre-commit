@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Hook: pre-commit
+# Verifica debug statements nos arquivos staged
+# Patterns configuraveis via .claude/enforcement.conf
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+CONF_FILE="$REPO_ROOT/.claude/enforcement.conf"
+
+# Patterns padrao se enforcement.conf nao existir
+DEFAULT_PATTERNS="console\.log|console\.debug|console\.warn|debugger|print\(|pdb\.set_trace|breakpoint\(\)|import pdb"
+
+if [ -f "$CONF_FILE" ]; then
+    # Ler patterns do arquivo (linhas nao vazias e nao comentadas)
+    PATTERNS=$(grep -v '^#' "$CONF_FILE" | grep -v '^$' | tr '\n' '|' | sed 's/|$//')
+    if [ -z "$PATTERNS" ]; then
+        PATTERNS="$DEFAULT_PATTERNS"
+    fi
+else
+    PATTERNS="$DEFAULT_PATTERNS"
+fi
+
+# Obter arquivos staged (apenas adicionados ou modificados)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+FOUND_ISSUES=0
+
+for FILE in $STAGED_FILES; do
+    # Ignorar arquivos binarios, de config e hooks
+    case "$FILE" in
+        *.md|*.json|*.yml|*.yaml|*.toml|*.cfg|*.conf|*.ini|*.txt|*.csv|*.lock|.claude/hooks/*|.gitignore)
+            continue
+            ;;
+    esac
+
+    # Verificar se o arquivo existe (pode ter sido deletado)
+    if [ ! -f "$FILE" ]; then
+        continue
+    fi
+
+    # Buscar patterns no conteudo staged (nao no working tree)
+    MATCHES=$(git diff --cached -U0 "$FILE" 2>/dev/null | grep '^+' | grep -v '^+++' | grep -nE "$PATTERNS" 2>/dev/null)
+
+    if [ -n "$MATCHES" ]; then
+        if [ "$FOUND_ISSUES" -eq 0 ]; then
+            echo "AVISO [pre-commit]: Debug statements encontrados em arquivos staged:"
+            echo ""
+        fi
+        echo "  $FILE:"
+        echo "$MATCHES" | while IFS= read -r line; do
+            echo "    $line"
+        done
+        echo ""
+        FOUND_ISSUES=1
+    fi
+done
+
+if [ "$FOUND_ISSUES" -eq 1 ]; then
+    echo "Remova os debug statements antes de commitar."
+    echo "Use --no-verify para ignorar (documente a justificativa)."
+    exit 1
+fi
+
+exit 0

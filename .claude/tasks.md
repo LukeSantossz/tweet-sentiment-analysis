@@ -335,6 +335,47 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
 
+### TASK-000
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** major
+- **Data de criacao:** 2026-05-01
+
+#### Objetivo
+Instalar hooks de enforcement git, enforcement.conf e templates de PR/Issue conforme regra 09.
+
+#### Contexto
+Bootstrap obrigatorio do sistema de governanca. Os hooks validam automaticamente formato de commits, debug statements, branches e estado do registro.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.claude/hooks/commit-msg`, `.claude/hooks/pre-commit`, `.claude/hooks/pre-push`, `.claude/hooks/post-merge`, `.claude/enforcement.conf`, `.claude/pr-template.md`, `.claude/issue-template.md`
+- **Dependencias necessarias:** nenhuma (bash + git puro)
+- **Impacto em funcionalidades existentes:** nenhum
+
+#### Criterios de Aceite
+- [x] Hook commit-msg valida formato type(scope): subject, sem body, sem co-authored-by
+- [x] Hook pre-commit verifica debug statements nos arquivos staged
+- [x] Hook pre-push valida formato da branch e task ativa
+- [x] Hook post-merge emite aviso de verificacao pos-pull
+- [x] enforcement.conf com patterns de debug por linguagem
+- [x] pr-template.md e issue-template.md criados
+- [x] git config core.hooksPath apontando para .claude/hooks
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-01 | 1 | Registro da task e implementacao completa | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-01
+- **Branch:** dev
+- **Commit(s):** pendente
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** 4 hooks (commit-msg, pre-commit, pre-push, post-merge), enforcement.conf e templates criados. git config core.hooksPath configurado.
+
+---
+
 ### TASK-001
 - **Status:** concluida
 - **Modo:** desenvolvimento

@@ -18,14 +18,14 @@
 
 | # | Data | Task | Complexidade | Escopo Alterado | Resultado | Observacoes |
 |---|------|------|--------------|-----------------|-----------|-------------|
-| 1 | 2026-03-10 | TASK-000 | major | .claude/hooks/, enforcement.conf | aprovado | Bootstrap: hooks instalados |
-| 2 | 2026-03-10 | TASK-001 | minor | 3 arquivos — config e estrutura | aprovado | Setup inicial do repositorio |
-| 3 | 2026-03-19 | TASK-002 | minor | 1 arquivo — notebooks | aprovado | EDA com 9 correcoes na revisao |
-| 4 | 2026-03-21 | TASK-003 | minor | 1 arquivo — src/preprocessing | aprovado | Pipeline de limpeza de tweets |
-| 5 | 2026-03-21 | TASK-004 | minor | 1 arquivo — tests | aprovado | Testes unitarios do preprocessing |
-| 6 | 2026-03-26 | TASK-005 | minor | 1 arquivo — notebooks | aprovado | Analise de tokenizacao, max_length=128 |
-| 7 | 2026-03-30 | TASK-006 | minor | 1 arquivo — notebooks | aprovado | Baseline zero-shot: 70% acc, 0.71 F1 |
-| 8 | 2026-05-01 | TASK-014 | major | 3 arquivos — .claude/ | aprovado | Migracao de tasks para formato .claude |
+| 1 | 2026-03-10 | TASK-001 | minor | 3 arquivos — config e estrutura | aprovado | Setup inicial do repositorio |
+| 2 | 2026-03-19 | TASK-002 | minor | 1 arquivo — notebooks | aprovado | EDA com 9 correcoes na revisao |
+| 3 | 2026-03-21 | TASK-003 | minor | 1 arquivo — src/preprocessing | aprovado | Pipeline de limpeza de tweets |
+| 4 | 2026-03-21 | TASK-004 | minor | 1 arquivo — tests | aprovado | Testes unitarios do preprocessing |
+| 5 | 2026-03-26 | TASK-005 | minor | 1 arquivo — notebooks | aprovado | Analise de tokenizacao, max_length=128 |
+| 6 | 2026-03-30 | TASK-006 | minor | 1 arquivo — notebooks | aprovado | Baseline zero-shot: 70% acc, 0.71 F1 |
+| 7 | 2026-05-01 | TASK-014 | major | 3 arquivos — .claude/ | aprovado | Migracao de tasks para formato .claude |
+| 8 | 2026-05-01 | TASK-000 | major | 7 arquivos — .claude/hooks/, enforcement.conf, templates | aprovado | Bootstrap: hooks, enforcement.conf, templates |
 
 ## Estado da Codebase
 
@@ -37,7 +37,7 @@
 - **Dependencias alteradas recentemente:** accelerate (adicionada em b224044)
 - **Testes passando:** sim — 20 testes (12 preprocessing + 8 training)
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-014 — Migracao de tasks para formato .claude
+- **Ultima task concluida:** TASK-000 — Bootstrap do enforcement (hooks, templates)
 
 ## Pendencias Conhecidas
 

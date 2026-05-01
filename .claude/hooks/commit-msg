@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Hook: commit-msg
+# Valida formato Conventional Commits: type(scope): subject
+# Regras: sem body, sem co-authored-by, subject 10-100 chars
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+VALID_TYPES="feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+
+LINE_COUNT=$(wc -l < "$COMMIT_MSG_FILE" | tr -d ' ')
+FIRST_LINE=$(head -n 1 "$COMMIT_MSG_FILE")
+
+# Rejeitar mensagens com mais de uma linha (sem body/footer)
+if [ "$LINE_COUNT" -gt 1 ]; then
+    # Permitir linha vazia final (trailing newline)
+    NON_EMPTY=$(sed '/^$/d' "$COMMIT_MSG_FILE" | wc -l | tr -d ' ')
+    if [ "$NON_EMPTY" -gt 1 ]; then
+        echo "ERRO [commit-msg]: Commit deve ter apenas a linha de subject, sem body ou footer."
+        echo "  Recebido: $LINE_COUNT linhas"
+        exit 1
+    fi
+fi
+
+# Validar formato type(scope): subject ou type: subject
+if ! echo "$FIRST_LINE" | grep -qE "^($VALID_TYPES)(\([a-zA-Z0-9_-]+\))?: .+$"; then
+    echo "ERRO [commit-msg]: Formato invalido."
+    echo "  Esperado: type(scope): subject"
+    echo "  Tipos validos: $VALID_TYPES"
+    echo "  Recebido: $FIRST_LINE"
+    exit 1
+fi
+
+# Extrair subject (parte apos ': ')
+SUBJECT=$(echo "$FIRST_LINE" | sed 's/^[^:]*: //')
+SUBJECT_LEN=${#SUBJECT}
+
+if [ "$SUBJECT_LEN" -lt 10 ]; then
+    echo "ERRO [commit-msg]: Subject muito curto ($SUBJECT_LEN chars, minimo 10)."
+    echo "  Subject: $SUBJECT"
+    exit 1
+fi
+
+if [ "$SUBJECT_LEN" -gt 100 ]; then
+    echo "ERRO [commit-msg]: Subject muito longo ($SUBJECT_LEN chars, maximo 100)."
+    echo "  Subject: $SUBJECT"
+    exit 1
+fi
+
+# Rejeitar co-autoria
+if grep -qiE "^(Co-authored-by|Signed-off-by):" "$COMMIT_MSG_FILE"; then
+    echo "ERRO [commit-msg]: Trailers de co-autoria nao sao permitidos."
+    echo "  Remova linhas Co-authored-by ou Signed-off-by."
+    exit 1
+fi
+
+exit 0
