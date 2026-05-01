@@ -44,12 +44,16 @@ projeto/
 │   │   ├── 06-crura.md               ← fluxo CRURA + checklist + reversão + templates
 │   │   ├── 07-integridade.md          ← 12 regras invioláveis
 │   │   ├── 08-registro-projeto.md     ← regras de atualização do registry
-│   │   └── 09-enforcement.md          ← hooks git automatizados
+│   │   ├── 09-enforcement.md          ← hooks git automatizados
+│   │   ├── 10-engenharia-agentica.md  ← metodologia Karpathy, checklist agêntico
+│   │   └── 11-integracao-codex.md     ← orquestração dual-agent com Codex
 │   ├── registry.md                    ← estado do projeto + histórico (mutável)
 │   ├── registry-archive.md            ← criado automaticamente quando histórico > 30 entradas
 │   ├── tasks.md                       ← registro de tasks (obrigatório)
 │   ├── pr-template.md                 ← template de Pull Request
 │   ├── issue-template.md              ← template de Issue
+│   ├── guia-configuracao-codex.md     ← guia prático de integração com Codex
+│   ├── setup-hooks.sh                 ← script de configuração dos git hooks
 │   ├── hooks/                         ← scripts de enforcement git
 │   └── enforcement.conf               ← padrões de debug log por linguagem
 ```
