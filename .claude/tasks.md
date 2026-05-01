@@ -335,6 +335,43 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
 
+### TASK-016
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-01
+
+#### Objetivo
+Integrar as diretrizes do repositorio andrej-karpathy-skills ao CLAUDE.md do projeto como secao obrigatoria.
+
+#### Contexto
+As diretrizes de Andrej Karpathy (forrestchang/andrej-karpathy-skills) codificam principios para reduzir erros comuns de LLMs ao gerar codigo. Os principios sao complementares as regras existentes em .claude/rules/ e devem ser incorporados como referencia obrigatoria.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.claude/CLAUDE.md`
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** nenhum
+
+#### Criterios de Aceite
+- [x] Secao com as diretrizes Karpathy adicionada ao CLAUDE.md
+- [x] Referencia ao repositorio original incluida
+- [x] Secao marcada como obrigatoria para agentes de IA
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-01 | 1 | Diretrizes integradas ao CLAUDE.md com correspondencia as regras existentes | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-01
+- **Branch:** docs/TASK-016-karpathy-skills
+- **Commit(s):** pendente
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Os 4 principios Karpathy ja estavam codificados em rules/01-principios.md. A integracao adicionou a secao ao CLAUDE.md com correspondencia explicita, marcada como obrigatoria e com referencia ao repositorio original.
+
+---
+
 ### TASK-015
 - **Status:** concluida
 - **Modo:** desenvolvimento
