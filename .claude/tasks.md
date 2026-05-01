@@ -370,7 +370,7 @@ Bootstrap obrigatorio do sistema de governanca. Os hooks validam automaticamente
 #### Resultado
 - **Data de conclusao:** 2026-05-01
 - **Branch:** dev
-- **Commit(s):** pendente
+- **Commit(s):** 014255f feat(enforcement): add git hooks, enforcement.conf and PR/issue templates
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** 4 hooks (commit-msg, pre-commit, pre-push, post-merge), enforcement.conf e templates criados. git config core.hooksPath configurado.
 
@@ -636,7 +636,7 @@ O projeto possui 13 tasks documentadas em formato proprio no arquivo tasks_para_
 #### Resultado
 - **Data de conclusao:** 2026-05-01
 - **Branch:** dev
-- **Commit(s):** pendente (a ser commitado pelo desenvolvedor)
+- **Commit(s):** 73215cc docs(claude): migrate tasks and update project registry
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** Campos nao mapeados no formato .claude foram ignorados conforme instrucao (Sprint, DoD, Estrategia de Teste, Dependencias e Bloqueios)
 
