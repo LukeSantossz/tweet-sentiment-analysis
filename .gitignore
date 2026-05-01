@@ -45,6 +45,7 @@ wheels/
 .DS_Store
 Thumbs.db
 desktop.ini
+nul
 
 # Data & Models (large files)
 models/
