@@ -64,9 +64,29 @@ projeto/
 6. **Atualização** do `registry.md`
 7. **CRURA** — Change → Review → Upload → Review Again → Auto-Revisão
 
-## Convenções Rápidas
+## Diretrizes Karpathy (obrigatório)
+
+> Baseado em [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills).
+> Estas diretrizes sao obrigatorias para todo agente de IA que opere neste projeto.
+> Bias: cautela sobre velocidade. Para tasks triviais, use julgamento.
+
+### 1. Pense Antes de Codar
+Nao assuma. Nao esconda confusao. Exponha trade-offs. Se houver multiplas interpretacoes, apresente-as — nao escolha silenciosamente. Se algo estiver confuso, pare, nomeie o que esta confuso e pergunte. Correspondencia: `rules/01-principios.md` secao 1.1.
+
+### 2. Simplicidade Primeiro
+Codigo minimo que resolve o problema. Nada especulativo. Sem features alem do pedido, sem abstracoes para uso unico, sem flexibilidade nao solicitada, sem tratamento de erro para cenarios impossiveis. Se escreveu 200 linhas e 50 resolveriam, reescreva. Teste: "Um engenheiro senior diria que isso esta overengineered?" Se sim, simplifique. Correspondencia: `rules/01-principios.md` secao 1.2.
+
+### 3. Mudancas Cirurgicas
+Toque apenas no necessario. Nao "melhore" codigo adjacente, comentarios ou formatacao. Nao refatore o que nao esta quebrado. Siga o estilo existente. Se notar codigo morto nao relacionado, mencione — nao delete. Remova orfaos criados pelas SUAS mudancas, nao codigo morto pre-existente. Teste: toda linha alterada deve ter rastreabilidade direta a solicitacao do usuario. Correspondencia: `rules/01-principios.md` secao 1.3.
+
+### 4. Execucao Orientada a Objetivos
+Defina criterios de sucesso verificaveis. Transforme tasks em objetivos concretos: "Adicionar validacao" se torna "Escrever testes para inputs invalidos, depois faze-los passar". Para multi-step, declare plano com checkpoints. Correspondencia: `rules/01-principios.md` secao 1.4.
+
+**Estas diretrizes estao funcionando quando:** diffs contem menos mudancas desnecessarias, reescritas por overengineering diminuem, e perguntas de esclarecimento acontecem antes da implementacao.
+
+## Convencoes Rapidas
 
 - **Commits:** `type(scope): subject` — sem body, sem co-authored-by
 - **Branches:** `type/TASK-NNN-descricao-curta`
-- **Tasks:** uma por implementação, complexidade obrigatória (patch/minor/major)
+- **Tasks:** uma por implementacao, complexidade obrigatoria (patch/minor/major)
 - **Nomenclatura:** VAR Method (Data, Info, Manager, Handler, Service, Repository...)
