@@ -8,14 +8,6 @@ data/
 env/
 ENV/
 
-# AI
-.claude
-CLAUDE.md
-
-# Miscellaneous
-review.md
-tutor.md
-
 # Python
 __pycache__/
 *.py[cod]
@@ -53,6 +45,7 @@ wheels/
 .DS_Store
 Thumbs.db
 desktop.ini
+nul
 
 # Data & Models (large files)
 models/

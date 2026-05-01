@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Hook: post-merge
+# Sinaliza que o estado da codebase pode ter mudado apos pull/merge
+
+echo ""
+echo "============================================"
+echo "  AVISO [post-merge]"
+echo "  A codebase foi alterada por pull/merge."
+echo "  Na proxima sessao com o agente, execute"
+echo "  a verificacao pos-pull (regra 08.3)."
+echo "============================================"
+echo ""
+
+exit 0

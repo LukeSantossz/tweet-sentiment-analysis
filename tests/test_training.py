@@ -1,26 +1,29 @@
 """Tests for the training module."""
 
-import numpy as np
-import pytest
 from unittest.mock import MagicMock
 
+import numpy as np
+import pytest
+
 from src.training import (
-    compute_metrics,
-    create_training_args,
-    load_tokenizer_and_model,
     LABEL_NAMES,
     MAX_LENGTH,
     MODEL_NAME,
+    compute_metrics,
+    create_training_args,
+    load_tokenizer_and_model,
 )
 
 
 def test_compute_metrics_perfect_predictions():
     """Test compute_metrics with perfect predictions."""
-    predictions = np.array([
-        [0.9, 0.05, 0.05],
-        [0.05, 0.9, 0.05],
-        [0.05, 0.05, 0.9],
-    ])
+    predictions = np.array(
+        [
+            [0.9, 0.05, 0.05],
+            [0.05, 0.9, 0.05],
+            [0.05, 0.05, 0.9],
+        ]
+    )
     labels = np.array([0, 1, 2])
 
     eval_pred = MagicMock()
@@ -34,16 +37,18 @@ def test_compute_metrics_perfect_predictions():
 
 def test_compute_metrics_partial_predictions():
     """Test compute_metrics with some incorrect predictions."""
-    predictions = np.array([
-        [0.9, 0.05, 0.05],
-        [0.9, 0.05, 0.05],
-        [0.05, 0.05, 0.9],
-    ])
+    predictions = np.array(
+        [
+            [0.9, 0.05, 0.05],
+            [0.9, 0.05, 0.05],
+            [0.05, 0.05, 0.9],
+        ]
+    )
     labels = np.array([0, 1, 2])
 
     result = compute_metrics((predictions, labels))
 
-    assert result["accuracy"] == pytest.approx(2/3, rel=1e-2)
+    assert result["accuracy"] == pytest.approx(2 / 3, rel=1e-2)
     assert "f1_macro" in result
     assert 0 <= result["f1_macro"] <= 1
 
