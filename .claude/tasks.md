@@ -366,7 +366,7 @@ As diretrizes de Andrej Karpathy (forrestchang/andrej-karpathy-skills) codificam
 #### Resultado
 - **Data de conclusao:** 2026-05-01
 - **Branch:** docs/TASK-016-karpathy-skills
-- **Commit(s):** pendente
+- **Commit(s):** e80b163 docs(claude): add Karpathy behavioral guidelines as mandatory section
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** Os 4 principios Karpathy ja estavam codificados em rules/01-principios.md. A integracao adicionou a secao ao CLAUDE.md com correspondencia explicita, marcada como obrigatoria e com referencia ao repositorio original.
 
