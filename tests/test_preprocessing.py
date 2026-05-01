@@ -1,10 +1,10 @@
 from src.preprocessing import (
-    remove_urls,
-    remove_mentions,
-    normalize_hashtags,
-    to_lowercase,
-    handle_emojis,
     clean_tweet_text,
+    handle_emojis,
+    normalize_hashtags,
+    remove_mentions,
+    remove_urls,
+    to_lowercase,
 )
 
 
@@ -90,7 +90,7 @@ def test_handle_emojis_border():
 
 def test_clean_tweet_text():
     tweet_data = "E aí @joao, beleza? Adoro programar em #python 😊 https://site.com"
-    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [URL]"
+    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [url]"
     result_info = clean_tweet_text(tweet_data)
 
     assert result_info == output_data
@@ -98,7 +98,7 @@ def test_clean_tweet_text():
 
 def test_clean_tweet_text_border():
     tweet_data = "  E aí @joao, beleza? Adoro programar em #python 😊 https://site.com"
-    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [URL]"
+    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [url]"
     result_info = clean_tweet_text(tweet_data)
 
     assert result_info == output_data
