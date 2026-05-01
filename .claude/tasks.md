@@ -366,7 +366,7 @@ Auditoria pos-TASK-000 identificou dois desvios: (1) pre-commit nao valida se ar
 #### Resultado
 - **Data de conclusao:** 2026-05-01
 - **Branch:** fix/TASK-015-corrigir-hooks-enforcement
-- **Commit(s):** pendente
+- **Commit(s):** 4300b61 fix(enforcement): add scope and registry validation to pre-commit and pre-push hooks
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** Validacao de escopo compara staged files contra campo Escopo Tecnico da task ativa. Validacao de registry extrai TASK-NNN dos commits e verifica presenca no historico. Arquivos .claude/ sao sempre permitidos no escopo.
 
