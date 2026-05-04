@@ -5,60 +5,92 @@
 
 # tweet-sentiment-analysis
 
-> Sentiment classification pipeline for tweets using Hugging Face Transformers and the TweetEval benchmark.
+> Fine-tuned RoBERTa model for 3-class sentiment classification on tweets, evaluated against the TweetEval benchmark.
 
-## Overview
+## Why This Exists
 
-Tweets have distinct linguistic patterns compared to formal text — abbreviations, slang, mentions, hashtags, and emojis make sentiment analysis a non-trivial problem for generic NLP models. This project addresses that gap by fine-tuning a social-media-specialized transformer on the `cardiffnlp/tweet_eval` dataset (negative / neutral / positive) and evaluating it against the TweetEval benchmark baseline.
+Generic sentiment models underperform on social media text. Tweets contain abbreviations, slang, @mentions, hashtags, and emojis that break assumptions built into models trained on formal corpora. This project fine-tunes a Twitter-specialized RoBERTa variant (`cardiffnlp/twitter-roberta-base-sentiment`) on the TweetEval benchmark dataset to classify tweets as **negative**, **neutral**, or **positive** — and measures the gain over the zero-shot baseline.
 
-## Tech Stack
+The zero-shot baseline achieves 70% accuracy and 0.71 macro F1. The fine-tuning pipeline is built to surpass these numbers on the same test split (12,284 samples).
 
-| Layer | Technology |
-|-------|-----------|
-| Dataset | `cardiffnlp/tweet_eval` (Hugging Face Datasets) |
-| Model | BERT/RoBERTa family (`cardiffnlp/twitter-roberta-base-sentiment`) |
-| Training | Hugging Face `Trainer` API |
-| Preprocessing | Custom `src/preprocessing.py` + `emoji` library |
-| Evaluation | `scikit-learn` (accuracy, macro F1) |
-| Visualization | `matplotlib`, `seaborn` |
-| Acceleration | PyTorch + CUDA (optional) |
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Data
+        A[TweetEval Dataset<br/>45.6K train · 2K val · 12.3K test]
+    end
+
+    subgraph Preprocessing
+        B[src/preprocessing.py<br/>URLs → token · @mentions → @user<br/>emojis → text · hashtags · lowercase]
+    end
+
+    subgraph Training
+        C[src/training.py<br/>HuggingFace Trainer API<br/>lr=2e-5 · 3 epochs · early stopping]
+    end
+
+    subgraph Model
+        D[twitter-roberta-base-sentiment<br/>CardiffNLP · 125M params]
+    end
+
+    subgraph Evaluation
+        E[Accuracy + Macro F1<br/>Confusion Matrix<br/>Per-class metrics]
+    end
+
+    A --> B --> C --> D --> E
+```
+
+## Engineering Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Model: `twitter-roberta-base-sentiment`** | Pre-trained on ~58M tweets — domain-aligned, no need for domain adaptation from scratch. |
+| **`max_length=128` tokens** | 99th percentile of token lengths is ~55. 128 is conservative but avoids any truncation artifacts. |
+| **Macro F1 as primary metric** | Dataset is imbalanced (neutral ~45%, positive ~30%, negative ~22%). Macro F1 penalizes poor performance on minority classes. |
+| **URLs replaced with `[URL]` token** | Preserves signal that a URL was present without introducing noise from the URL content itself. |
+| **Emojis converted via `emoji.demojize()`** | Transforms emojis into descriptive text (e.g., `:fire:`) readable by the tokenizer, preserving sentiment signal. |
+| **Early stopping with `patience=2`** | Prevents overfitting on the relatively small training set without manual epoch tuning. |
+| **CPU-only PyTorch in CI** | Avoids ~2GB CUDA download in the pipeline. Slow tests requiring GPU/network are excluded via pytest marker. |
+| **Ruff for linting** | Fast, Rust-based linter. Rules E/F/I with `line-length=120`. Notebooks excluded (not production code). |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.10+
 - pip
-- (Optional) CUDA 11.x or higher for GPU acceleration
+- (Optional) CUDA 11.x+ for GPU acceleration
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/<username>/tweet-sentiment-analysis.git
+git clone https://github.com/LukeSantossz/tweet-sentiment-analysis.git
 cd tweet-sentiment-analysis
 
-# Create and activate a virtual environment
 python -m venv venv
 source venv/bin/activate   # Linux / macOS
-venv\Scripts\activate       # Windows
+venv\Scripts\activate      # Windows
 
-# Install dependencies
 pip install -r requirements.txt
 ```
 
 ### Running
 
 ```bash
-# Start the Jupyter server
-jupyter notebook
+# Run the fine-tuning script
+python -m src.training
 
-# Open notebooks in order:
-# notebooks/01_eda.ipynb            - dataset exploratory analysis
-# notebooks/02_tokenization.ipynb   - preprocessing and tokenization
+# Run tests
+pytest tests/ -m "not slow" -v
+
+# Run linter
+ruff check . && ruff format --check .
+
+# Launch Jupyter for analysis notebooks
+jupyter notebook
 ```
 
-**Environment variables:**
+### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -70,35 +102,39 @@ jupyter notebook
 
 ```
 tweet-sentiment-analysis/
-├── notebooks/
-│   ├── 01_eda.ipynb              # EDA: class distribution across train/test/validation splits
-│   └── 02_tokenization.ipynb     # Preprocessing and tokenization
 ├── src/
 │   ├── __init__.py
-│   └── preprocessing.py          # Text cleaning and normalization functions
+│   ├── preprocessing.py            # Tweet cleaning pipeline (URLs, mentions, emojis, hashtags)
+│   └── training.py                 # Fine-tuning script with HuggingFace Trainer API
 ├── tests/
-│   └── test_preprocessing.py     # Unit tests for the preprocessing module
-├── venv/                          # Local virtual environment (not versioned)
-├── .gitignore
-├── requirements.txt
+│   ├── test_preprocessing.py       # 11 unit tests for preprocessing functions
+│   └── test_training.py            # 10 tests for training module (config, metrics, constants)
+├── notebooks/
+│   ├── 01_eda.ipynb                # Exploratory data analysis: class distribution, text patterns
+│   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
+│   └── 03_inference_baseline.ipynb # Zero-shot baseline: 70% acc, 0.71 macro F1
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # GitHub Actions: lint (ruff) + test (pytest)
+├── .claude/                        # AI agent governance rules and project registry
+├── pyproject.toml                  # Ruff and pytest configuration
+├── requirements.txt                # Python dependencies
 └── README.md
 ```
 
 ## Current Status
 
-**Status: In development — initial sprint**
-
-| Stage | Status |
-|-------|--------|
-| EDA and class distribution analysis | Done [x] |
-| Tokenization notebook | Done [x] |
-| `src/preprocessing.py` module | Done [x] |
-| Preprocessing unit tests | Done [x] |
-| Transformer model fine-tuning | Pending [ ] |
-| Final evaluation and benchmark metrics | Pending [ ] |
-
-**Next steps:**
-
-1. Structure the training script using the Hugging Face `Trainer` API
-2. Define the evaluation protocol and baseline experiment
-3. Document results and compare against the TweetEval leaderboard
+| Stage | Status | Details |
+|-------|--------|---------|
+| Exploratory Data Analysis | Done | Class imbalance identified, noise patterns mapped |
+| Preprocessing Pipeline | Done | 6 cleaning functions, 11 passing tests |
+| Tokenization Analysis | Done | max_length=128 validated at 99th percentile |
+| Zero-shot Baseline | Done | 70% accuracy, 0.71 macro F1 |
+| Training Script | Done | Trainer API, early stopping, CLI args |
+| Training Module Tests | Done | 10 tests covering config, metrics, constants |
+| CI Pipeline | Done | GitHub Actions with ruff + pytest |
+| Fine-tuning Execution | Pending | Script ready, awaiting GPU execution |
+| Comparative Evaluation | Pending | Baseline vs fine-tuned, per-class analysis |
+| REST API (FastAPI) | Planned | POST /predict endpoint |
+| Demo UI (Gradio) | Planned | Interactive frontend |
+| Docker Containerization | Planned | Dockerfile + docker-compose |

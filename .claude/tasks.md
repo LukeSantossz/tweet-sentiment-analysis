@@ -83,6 +83,46 @@ A complexidade determina o nivel de cerimonia na avaliacao pos-implementacao (ve
 > Tasks em andamento ou pendentes de implementacao. O agente so pode trabalhar em tasks listadas aqui.
 > **Regra de ordenacao:** A primeira task listada e a task ativa. O agente trabalha nela ate conclusao, descarte ou bloqueio explicito pelo usuario. Para mudar a prioridade, o usuario reordena as tasks nesta secao.
 
+### TASK-019
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-04
+
+#### Objetivo
+Atualizar README.md conforme regra 12-portfolio-publico.md: contexto de negocio, diagrama de arquitetura, decisoes de engenharia e instrucoes de execucao atualizadas.
+
+#### Contexto
+README atual esta desatualizado — nao reflete o estado real do projeto (training module, baseline, CI, testes). A regra 12 exige README com contexto de negocio, diagrama Mermaid, decisoes de engenharia e setup funcional.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `README.md`
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** nenhum
+
+#### Criterios de Aceite
+- [x] Contexto de negocio explicando o problema real que o projeto resolve
+- [x] Diagrama de arquitetura em Mermaid
+- [x] Secao de decisoes de engenharia com justificativas
+- [x] Secao Project Structure atualizada com todos os arquivos atuais
+- [x] Secao Current Status atualizada refletindo estado real
+- [x] README em ingles conforme regra 12.2
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-04 | 1 | Reescrita completa do README conforme regra 12 | concluida |
+
+#### Resultado (preenchido ao concluir)
+- **Data de conclusao:** 2026-05-04
+- **Branch:** main
+- **Commit(s):** pendente
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** README reescrito com 6 secoes da regra 12.2. Dados de baseline, decisoes tecnicas e estrutura verificados contra codebase real e registry.md.
+
+---
+
 ### TASK-018
 - **Status:** concluida
 - **Modo:** desenvolvimento
