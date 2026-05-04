@@ -83,6 +83,43 @@ A complexidade determina o nivel de cerimonia na avaliacao pos-implementacao (ve
 > Tasks em andamento ou pendentes de implementacao. O agente so pode trabalhar em tasks listadas aqui.
 > **Regra de ordenacao:** A primeira task listada e a task ativa. O agente trabalha nela ate conclusao, descarte ou bloqueio explicito pelo usuario. Para mudar a prioridade, o usuario reordena as tasks nesta secao.
 
+### TASK-018
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** patch
+- **Data de criacao:** 2026-05-04
+
+#### Objetivo
+Sincronizar regra faltante de .claude_config/ para .claude/, atualizar CLAUDE.md e remover pasta duplicada .claude_config/.
+
+#### Contexto
+Auditoria identificou que .claude_config/ contem regra 12-portfolio-publico.md ausente em .claude/rules/. Todos os demais 22 arquivos compartilhados sao identicos. A pasta .claude_config/ e uma copia redundante que deve ser removida apos sincronizacao.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.claude/rules/12-portfolio-publico.md` (novo), `.claude/CLAUDE.md`, `.claude_config/` (remocao)
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** nenhum
+
+#### Criterios de Aceite
+- [x] Arquivo 12-portfolio-publico.md presente em .claude/rules/
+- [x] CLAUDE.md com referencia a regra 12 na estrutura do sistema de regras
+- [x] Pasta .claude_config/ removida
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-04 | 1 | Auditoria, sincronizacao da regra 12, atualizacao CLAUDE.md, remocao .claude_config/ | concluida |
+
+#### Resultado (preenchido ao concluir)
+- **Data de conclusao:** 2026-05-04
+- **Branch:** main
+- **Commit(s):** pendente de commit pelo desenvolvedor
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** 22 arquivos compartilhados eram identicos. Unica diferenca acionavel era regra 12-portfolio-publico.md. registry.md de .claude_config/ era template vazio (descartado — .claude/ contem dados reais).
+
+---
+
 ### TASK-017
 - **Status:** concluida
 - **Modo:** desenvolvimento

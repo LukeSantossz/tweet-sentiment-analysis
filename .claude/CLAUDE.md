@@ -46,7 +46,8 @@ projeto/
 │   │   ├── 08-registro-projeto.md     ← regras de atualização do registry
 │   │   ├── 09-enforcement.md          ← hooks git automatizados
 │   │   ├── 10-engenharia-agentica.md  ← metodologia Karpathy, checklist agêntico
-│   │   └── 11-integracao-codex.md     ← orquestração dual-agent com Codex
+│   │   ├── 11-integracao-codex.md     ← orquestração dual-agent com Codex
+│   │   └── 12-portfolio-publico.md    ← GitHub como vitrine profissional
 │   ├── registry.md                    ← estado do projeto + histórico (mutável)
 │   ├── registry-archive.md            ← criado automaticamente quando histórico > 30 entradas
 │   ├── tasks.md                       ← registro de tasks (obrigatório)

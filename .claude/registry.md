@@ -29,18 +29,19 @@
 | 9 | 2026-05-01 | TASK-015 | minor | 2 arquivos — .claude/hooks/ | aprovado | Correcao: validacao de escopo e registry nos hooks |
 | 10 | 2026-05-01 | TASK-016 | minor | 1 arquivo — .claude/CLAUDE.md | aprovado | Diretrizes Karpathy integradas como secao obrigatoria |
 | 11 | 2026-05-01 | TASK-017 | minor | 7 arquivos — CI, config, src/, tests/ | aprovado | GitHub Actions CI com lint (ruff) e testes (pytest) |
+| 12 | 2026-05-04 | TASK-018 | patch | 2 arquivos + remocao .claude_config/ | aprovado | Sincronizacao regra 12 + remocao pasta duplicada |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementacao ou verificacao pos-pull. Reflete o snapshot mais recente do projeto.
 
-- **Ultima atualizacao:** 2026-05-01
+- **Ultima atualizacao:** 2026-05-04
 - **Ultimo responsavel:** agente
-- **Branch ativa:** ci/TASK-017-github-actions-ci
-- **Dependencias alteradas recentemente:** ruff, pytest (dev-only via requirements-dev.txt)
+- **Branch ativa:** main
+- **Dependencias alteradas recentemente:** nenhuma
 - **Testes passando:** sim — 20 testes (12 preprocessing + 8 training), 1 slow deselected
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-017 — GitHub Actions CI com lint e testes
+- **Ultima task concluida:** TASK-018 — Sincronizacao regra 12 e remocao .claude_config/
 
 ## Pendencias Conhecidas
 
