@@ -73,3 +73,6 @@ baseline/
 
 # HuggingFace cache
 .huggingface/
+
+# Rust build artifacts
+**/target/
