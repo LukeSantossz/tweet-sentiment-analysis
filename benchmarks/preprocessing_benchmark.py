@@ -14,7 +14,6 @@ This script:
 
 import argparse
 import csv
-import os
 import random
 import subprocess
 import sys
