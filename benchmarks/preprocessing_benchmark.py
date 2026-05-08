@@ -74,9 +74,7 @@ def benchmark_python(tweets: list[str]) -> tuple[list[str], float]:
     return results, elapsed
 
 
-def benchmark_rust(
-    input_path: Path, output_path: Path, rust_bin: Path
-) -> tuple[float, bool]:
+def benchmark_rust(input_path: Path, output_path: Path, rust_bin: Path) -> tuple[float, bool]:
     """Benchmark Rust preprocessing, return (elapsed_seconds, success)."""
     if not rust_bin.exists():
         return 0.0, False
@@ -191,9 +189,7 @@ def main():
 
         if not args.skip_rust:
             # Write temp CSV for Rust
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(["text"])
                 for t in tweets:
@@ -253,9 +249,7 @@ def main():
         else:
             speedup_str = "N/A"
         parity_str = "OK" if r["parity"] else ("FAIL" if r["parity"] is False else "N/A")
-        print(
-            f"{r['size']:>12,} {r['python_time']:>12.3f} {rust_str:>12} {speedup_str:>10} {parity_str:>8}"
-        )
+        print(f"{r['size']:>12,} {r['python_time']:>12.3f} {rust_str:>12} {speedup_str:>10} {parity_str:>8}")
 
     print("=" * 60)
 
