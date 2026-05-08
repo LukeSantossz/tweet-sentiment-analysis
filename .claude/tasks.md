@@ -123,10 +123,10 @@ Review adversarial (Codex) identificou 7 findings na TASK-020, incluindo 2 de al
 
 #### Resultado
 - **Data de conclusao:** 2026-05-07
-- **Branch:** main
-- **Commit(s):** pendente (aguardando commit junto com TASK-020)
+- **Branch:** feat/TASK-020-024-rust-preprocessing
+- **Commit(s):** 6818885 fix(benchmark): add parity validation and document emoji divergence
 - **Avaliacao pos-implementacao:** aprovado
-- **Observacoes:** Findings HIGH corrigidos: (1) divergencia emoji documentada no README; (2) benchmark suprime speedup quando parity falha. Findings MEDIUM corrigidos: row count validation, seed reprodutibilidade. Findings aceitos: null handling (edge case raro), emoji loop allocation (premature optimization).
+- **Observacoes:** Findings HIGH corrigidos: (1) divergencia emoji documentada no README; (2) benchmark suprime speedup quando parity falha. Findings MEDIUM corrigidos: row count validation, seed reprodutibilidade. Findings aceitos: null handling (edge case raro), emoji loop allocation (premature optimization). PR #19.
 
 ---
 
@@ -173,10 +173,10 @@ O pipeline atual de preprocessing em Python (regex) e gargalo para processar 1.6
 
 #### Resultado
 - **Data de conclusao:** 2026-05-07
-- **Branch:** main
-- **Commit(s):** pendente
-- **Avaliacao pos-implementacao:** aprovado
-- **Observacoes:** Speedup medido: 2.1x (1k), 10.3x (10k), 42.2x (100k). Suporte JSON removido por incompatibilidade API polars 0.46. Build compilado em C:\temp\ por politica de seguranca OneDrive.
+- **Branch:** feat/TASK-020-024-rust-preprocessing
+- **Commit(s):** 1bdc807 feat(rust): add high-performance tweet preprocessing CLI
+- **Avaliacao pos-implementacao:** aprovado com ressalvas
+- **Observacoes:** Speedup medido: 2.1x (1k), 10.3x (10k), 42.2x (100k). Suporte JSON removido por incompatibilidade API polars 0.46. Build compilado em C:\temp\ por politica de seguranca OneDrive. Review Codex: 7 findings (corrigidos em TASK-024). PR #19.
 
 ---
 
