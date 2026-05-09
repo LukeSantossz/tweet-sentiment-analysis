@@ -2082,6 +2082,7 @@ dependencies = [
  "polars",
  "rayon",
  "regex",
+ "unicode-segmentation",
 ]
 
 [[package]]

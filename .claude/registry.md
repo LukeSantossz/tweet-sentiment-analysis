@@ -33,18 +33,19 @@
 | 13 | 2026-05-04 | TASK-019 | minor | 1 arquivo — README.md | aprovado | README reescrito conforme regra 12-portfolio-publico |
 | 14 | 2026-05-07 | TASK-020 | major | 4 arquivos — rust/tweet-preprocessor/, benchmarks/ | aprovado com ressalvas | CLI Rust: 42x speedup. Review Codex: 7 findings (2 HIGH corrigidos em TASK-024) |
 | 15 | 2026-05-07 | TASK-024 | minor | 4 arquivos — .gitignore, rust/README, benchmark, registry | aprovado | Correcoes do review Codex: emoji docs, benchmark parity/seed |
+| 16 | 2026-05-09 | TASK-025 | minor | 4 arquivos — requirements.txt, main.rs, Cargo.toml, tasks.md | aprovado | Auditoria: emoji multi-codepoint, deps, tasks reorganizadas |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementacao ou verificacao pos-pull. Reflete o snapshot mais recente do projeto.
 
-- **Ultima atualizacao:** 2026-05-07
+- **Ultima atualizacao:** 2026-05-09
 - **Ultimo responsavel:** agente
-- **Branch ativa:** main
-- **Dependencias alteradas recentemente:** Rust toolchain (sistema), polars Python (pip)
-- **Testes passando:** sim — 20 testes (12 preprocessing + 8 training), 1 slow deselected
+- **Branch ativa:** feat/TASK-020-024-rust-preprocessing
+- **Dependencias alteradas recentemente:** polars e numpy adicionados ao requirements.txt, unicode-segmentation adicionado ao Cargo.toml
+- **Testes passando:** sim — 20 testes Python (12 preprocessing + 8 training) + 7 testes Rust
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-024 — Correcoes do review Codex para TASK-020
+- **Ultima task concluida:** TASK-025 — Correcoes de auditoria (emoji multi-codepoint, requirements, tasks reorganizadas)
 
 ## Pendencias Conhecidas
 
@@ -67,7 +68,7 @@
 - CI: torch CPU-only no pipeline para evitar download CUDA (~2GB); testes slow excluidos via marker
 - Arquitetura de escala: Rust CLI para preprocessing (42x speedup medido em 100k tweets) + Python para inferencia GPU (1.6M tweets target)
 - Polars 0.46 Rust: suporte JSON removido por incompatibilidade de API; CSV e Parquet suportados
-- Emoji handling Rust vs Python: divergencia documentada para emojis multi-codepoint (ZWJ, skin tones, flags); paridade validada para emojis single-codepoint comuns em tweets
+- Emoji handling Rust: corrigido para usar grapheme clusters (unicode-segmentation crate) em vez de char iteration; paridade total com Python para emojis multi-codepoint (flags, skin tones, ZWJ sequences)
 
 ## Padroes Recorrentes Observados
 

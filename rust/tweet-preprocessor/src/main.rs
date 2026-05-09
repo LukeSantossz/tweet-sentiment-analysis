@@ -6,6 +6,7 @@ use regex::Regex;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::time::Instant;
+use unicode_segmentation::UnicodeSegmentation;
 
 static URL_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://\S+").unwrap());
 static MENTION_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@\w+").unwrap());
@@ -47,13 +48,16 @@ fn normalize_hashtags(text: &str) -> String {
 
 fn handle_emojis(text: &str) -> String {
     let mut result = String::with_capacity(text.len() * 2);
-    for c in text.chars() {
-        if let Some(emoji) = emojis::get(c.to_string().as_str()) {
+
+    // Use grapheme clusters to correctly handle multi-codepoint emojis
+    // (flags, skin tones, ZWJ sequences like family emojis)
+    for grapheme in text.graphemes(true) {
+        if let Some(emoji) = emojis::get(grapheme) {
             result.push(':');
             result.push_str(&emoji.name().replace(' ', "_"));
             result.push(':');
         } else {
-            result.push(c);
+            result.push_str(grapheme);
         }
     }
     result
@@ -212,6 +216,39 @@ mod tests {
     fn test_handle_emojis() {
         let result = handle_emojis("Estou feliz 😊");
         assert!(result.contains(":smiling_face_with_smiling_eyes:"));
+    }
+
+    #[test]
+    fn test_handle_emojis_multi_codepoint() {
+        // Test flag emoji (2 regional indicator symbols)
+        let result_flag = handle_emojis("Viva o Brasil 🇧🇷!");
+        assert!(
+            result_flag.contains("Brazil") && result_flag.contains(":"),
+            "Flag should be converted to text: {}",
+            result_flag
+        );
+        // Verify the flag emoji itself is not in output
+        assert!(
+            !result_flag.contains("🇧🇷"),
+            "Flag emoji should be removed: {}",
+            result_flag
+        );
+
+        // Test skin tone modifier
+        let result_skin = handle_emojis("Thumbs up 👍🏻");
+        assert!(
+            !result_skin.contains("👍"),
+            "Skin tone emoji should be converted: {}",
+            result_skin
+        );
+
+        // Test ZWJ sequence (family emoji)
+        let result_family = handle_emojis("Family 👨‍👩‍👧");
+        assert!(
+            !result_family.contains("👨") && !result_family.contains("👩") && !result_family.contains("👧"),
+            "ZWJ family should be converted: {}",
+            result_family
+        );
     }
 
     #[test]
