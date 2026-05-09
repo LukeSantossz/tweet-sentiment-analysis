@@ -83,45 +83,6 @@ A complexidade determina o nivel de cerimonia na avaliacao pos-implementacao (ve
 > Tasks em andamento ou pendentes de implementacao. O agente so pode trabalhar em tasks listadas aqui.
 > **Regra de ordenacao:** A primeira task listada e a task ativa. O agente trabalha nela ate conclusao, descarte ou bloqueio explicito pelo usuario. Para mudar a prioridade, o usuario reordena as tasks nesta secao.
 
-### TASK-025
-- **Status:** concluida
-- **Modo:** desenvolvimento
-- **Complexidade:** minor
-- **Data de criacao:** 2026-05-09
-
-#### Objetivo
-Corrigir organizacao de tasks, dependencias faltantes, emojis multi-codepoint no Rust e arquivo nul acidental.
-
-#### Contexto
-Auditoria identificou: (1) 5 tasks concluidas na secao errada; (2) polars faltando em requirements.txt; (3) divergencia de emojis multi-codepoint entre Python e Rust; (4) arquivo `nul` criado acidentalmente na raiz.
-
-#### Escopo Tecnico
-- **Arquivos/modulos envolvidos:** `.claude/tasks.md`, `requirements.txt`, `rust/tweet-preprocessor/src/main.rs`, `rust/tweet-preprocessor/Cargo.toml`, `nul` (remocao)
-- **Dependencias necessarias:** unicode-segmentation (Rust crate)
-- **Impacto em funcionalidades existentes:** Rust CLI passa a processar emojis multi-codepoint corretamente
-
-#### Criterios de Aceite
-- [x] Tasks concluidas (TASK-017, 018, 019, 020, 024) movidas para secao Tasks Concluidas
-- [x] polars e numpy adicionados ao requirements.txt
-- [x] Funcao handle_emojis do Rust corrigida para multi-codepoint (unicode-segmentation)
-- [x] Arquivo nul removido do diretorio raiz
-- [x] Testes Rust passando com emojis multi-codepoint (7 testes ok)
-
-#### Log de Andamento
-
-| Data | Sessao | Acao Realizada | Status ao Final |
-|------|--------|----------------|-----------------|
-| 2026-05-09 | 1 | requirements.txt, main.rs, Cargo.toml, nul removido, 7 testes Rust, 20 testes Python, benchmark parity OK, tasks reorganizadas | concluida |
-
-#### Resultado
-- **Data de conclusao:** 2026-05-09
-- **Branch:** feat/TASK-020-024-rust-preprocessing
-- **Commit(s):** 3a57bae fix(rust): handle multi-codepoint emojis with grapheme clusters
-- **Avaliacao pos-implementacao:** aprovado
-- **Observacoes:** Paridade Python/Rust validada via benchmark (7.9x speedup em 10k tweets). Emojis multi-codepoint (flags, skin tones, ZWJ) agora processados corretamente via grapheme clusters.
-
----
-
 ### TASK-021
 - **Status:** pendente
 - **Modo:** desenvolvimento
@@ -129,10 +90,10 @@ Auditoria identificou: (1) 5 tasks concluidas na secao errada; (2) polars faltan
 - **Data de criacao:** 2026-05-07
 
 #### Objetivo
-Implementar script de batch inference otimizado para processar 1.6M tweets preprocessados com GPU.
+Implementar script de batch inference otimizado para processar grandes volumes de tweets (minimo 1M) com GPU.
 
 #### Contexto
-Apos preprocessing em Rust (TASK-020), o pipeline Python recebe Parquet limpo e executa inferencia em batch. O script deve maximizar throughput via DataLoader otimizado, batching adequado e gerenciamento de memoria GPU. Depende de TASK-007 (modelo fine-tuned) e TASK-020 (preprocessing Rust).
+Apos preprocessing em Rust (TASK-020), o pipeline Python recebe Parquet limpo e executa inferencia em batch. O script deve maximizar throughput via DataLoader otimizado, batching adequado e gerenciamento de memoria GPU para processar volumes de escala (minimo 1M tweets). Depende de TASK-007 (modelo fine-tuned) e TASK-020 (preprocessing Rust).
 
 #### Escopo Tecnico
 - **Arquivos/modulos envolvidos:** `src/batch_inference.py` (novo)
@@ -182,7 +143,7 @@ Validar o ganho de performance do preprocessing em Rust (TASK-020) vs Python pur
 - **Impacto em funcionalidades existentes:** nenhum
 
 #### Criterios de Aceite
-- [ ] Script de benchmark com dataset de teste (10k, 100k, 1M tweets)
+- [ ] Script de benchmark com dataset de teste em escala crescente (minimo 1M tweets)
 - [ ] Medicao de tempo para Python (`src/preprocessing.py`) e Rust (`rust/tweet-preprocessor`)
 - [ ] Tabela comparativa no README: tweets/segundo, speedup factor
 - [ ] Validacao de paridade funcional: output identico para ambos
@@ -478,6 +439,45 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 ## Tasks Concluidas
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
+
+### TASK-025
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-09
+
+#### Objetivo
+Corrigir organizacao de tasks, dependencias faltantes, emojis multi-codepoint no Rust e arquivo nul acidental.
+
+#### Contexto
+Auditoria identificou: (1) 5 tasks concluidas na secao errada; (2) polars faltando em requirements.txt; (3) divergencia de emojis multi-codepoint entre Python e Rust; (4) arquivo `nul` criado acidentalmente na raiz.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `.claude/tasks.md`, `requirements.txt`, `rust/tweet-preprocessor/src/main.rs`, `rust/tweet-preprocessor/Cargo.toml`, `nul` (remocao)
+- **Dependencias necessarias:** unicode-segmentation (Rust crate)
+- **Impacto em funcionalidades existentes:** Rust CLI passa a processar emojis multi-codepoint corretamente
+
+#### Criterios de Aceite
+- [x] Tasks concluidas (TASK-017, 018, 019, 020, 024) movidas para secao Tasks Concluidas
+- [x] polars e numpy adicionados ao requirements.txt
+- [x] Funcao handle_emojis do Rust corrigida para multi-codepoint (unicode-segmentation)
+- [x] Arquivo nul removido do diretorio raiz
+- [x] Testes Rust passando com emojis multi-codepoint (7 testes ok)
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-09 | 1 | requirements.txt, main.rs, Cargo.toml, nul removido, 7 testes Rust, 20 testes Python, benchmark parity OK, tasks reorganizadas | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-09
+- **Branch:** feat/TASK-020-024-rust-preprocessing
+- **Commit(s):** 3a57bae fix(rust): handle multi-codepoint emojis with grapheme clusters
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Paridade Python/Rust validada via benchmark (7.9x speedup em 10k tweets). Emojis multi-codepoint (flags, skin tones, ZWJ) agora processados corretamente via grapheme clusters.
+
+---
 
 ### TASK-024
 - **Status:** concluida

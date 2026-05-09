@@ -66,7 +66,7 @@
 - Early stopping com patience=2 no training (evitar overfitting)
 - Ruff: rules E/F/I, line-length=120, notebooks excluidos via extend-exclude (nao sao codigo de producao)
 - CI: torch CPU-only no pipeline para evitar download CUDA (~2GB); testes slow excluidos via marker
-- Arquitetura de escala: Rust CLI para preprocessing (42x speedup medido em 100k tweets) + Python para inferencia GPU (1.6M tweets target)
+- Arquitetura de escala: Rust CLI para preprocessing (42x speedup medido em 100k tweets) + Python para inferencia GPU (minimo 1M tweets)
 - Polars 0.46 Rust: suporte JSON removido por incompatibilidade de API; CSV e Parquet suportados
 - Emoji handling Rust: corrigido para usar grapheme clusters (unicode-segmentation crate) em vez de char iteration; paridade total com Python para emojis multi-codepoint (flags, skin tones, ZWJ sequences)
 
