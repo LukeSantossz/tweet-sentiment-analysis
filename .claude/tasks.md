@@ -116,7 +116,7 @@ Auditoria identificou: (1) 5 tasks concluidas na secao errada; (2) polars faltan
 #### Resultado
 - **Data de conclusao:** 2026-05-09
 - **Branch:** feat/TASK-020-024-rust-preprocessing
-- **Commit(s):** pendente
+- **Commit(s):** 3a57bae fix(rust): handle multi-codepoint emojis with grapheme clusters
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** Paridade Python/Rust validada via benchmark (7.9x speedup em 10k tweets). Emojis multi-codepoint (flags, skin tones, ZWJ) agora processados corretamente via grapheme clusters.
 
