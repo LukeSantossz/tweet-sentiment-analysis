@@ -2,11 +2,13 @@ transformers
 datasets
 torch
 pandas
+numpy
 matplotlib
 seaborn
 scikit-learn
 notebook
 emoji
 accelerate
+polars
 ruff
 pytest
