@@ -1,8 +1,0 @@
-matplotlib
-notebook
-numpy
-pandas
-pytest
-scikit-fuzzy
-torch
-tslearn
