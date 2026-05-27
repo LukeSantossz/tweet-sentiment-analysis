@@ -34,18 +34,19 @@
 | 14 | 2026-05-07 | TASK-020 | major | 4 arquivos — rust/tweet-preprocessor/, benchmarks/ | aprovado com ressalvas | CLI Rust: 42x speedup. Review Codex: 7 findings (2 HIGH corrigidos em TASK-024) |
 | 15 | 2026-05-07 | TASK-024 | minor | 4 arquivos — .gitignore, rust/README, benchmark, registry | aprovado | Correcoes do review Codex: emoji docs, benchmark parity/seed |
 | 16 | 2026-05-09 | TASK-025 | minor | 4 arquivos — requirements.txt, main.rs, Cargo.toml, tasks.md | aprovado | Auditoria: emoji multi-codepoint, deps, tasks reorganizadas |
+| 17 | 2026-05-10 | TASK-027 | major | 20 arquivos — .claude/ reestruturado, CLAUDE.md raiz | aprovado retroativamente | Framework v1.1.0. Registro retroativo em 2026-05-27 apos auditoria de branches (commit d0ae26f orfao). Isolado em chore branch dedicada |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementacao ou verificacao pos-pull. Reflete o snapshot mais recente do projeto.
 
-- **Ultima atualizacao:** 2026-05-09
+- **Ultima atualizacao:** 2026-05-27
 - **Ultimo responsavel:** agente
-- **Branch ativa:** feat/TASK-020-024-rust-preprocessing
-- **Dependencias alteradas recentemente:** polars e numpy adicionados ao requirements.txt, unicode-segmentation adicionado ao Cargo.toml
-- **Testes passando:** sim — 20 testes Python (12 preprocessing + 8 training) + 7 testes Rust
+- **Branch ativa:** chore/TASK-027-framework-v110 (auditoria de branches em andamento — 2026-05-27)
+- **Dependencias alteradas recentemente:** nenhuma desde TASK-025
+- **Testes passando:** sim — 21 testes Python (12 preprocessing + 9 training, 1 marcado @slow) + 7 testes Rust
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-025 — Correcoes de auditoria (emoji multi-codepoint, requirements, tasks reorganizadas)
+- **Ultima task concluida:** TASK-027 — Framework v1.1.0 registrado retroativamente apos isolar commit orfao
 
 ## Pendencias Conhecidas
 
@@ -74,7 +75,7 @@
 
 | Padrao | Frequencia | Impacto | Acao Corretiva |
 |--------|------------|---------|----------------|
-| [nenhum registrado] | — | — | — |
+| Commit sem task registrada (orfao) | 1 ocorrencia (d0ae26f, framework v1.1.0) | Viola regra 00. Detectado tardiamente via auditoria de branches | Registro retroativo (TASK-027) + isolamento em chore branch. Reforco da regra 00 em sessoes futuras |
 
 ---
 
