@@ -440,6 +440,56 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
 
+### TASK-027
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** major
+- **Data de criacao:** 2026-05-27
+
+#### Objetivo
+Atualizar framework de governanca .claude para v1.1.0: reestruturar diretorios (guides/, templates/), adicionar VERSION e prd.md, mover CLAUDE.md para raiz do projeto, remover regras descontinuadas (10-engenharia-agentica, 11-integracao-codex), atualizar regras 00-08 com refinamentos.
+
+#### Contexto
+Registro retroativo de commit orfao identificado durante auditoria de branches em 2026-05-27. O commit `d0ae26f` (datado 2026-05-10) atualizou o framework de governanca mas foi feito sem task registrada, violando regra 00. Estava pendurado em `feat/TASK-020-024-rust-preprocessing` apos o merge da PR #21 e foi herdado por `docs/TASK-026-readme-rust-section`. Esta task formaliza o commit em branch dedicada (`chore/TASK-027-framework-v110`) para PR separada, evitando que o PR de TASK-026 misture escopos. A sessao atual opera sob esta versao v1.1.0.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** 20 arquivos — `.claude/CLAUDE.md` (removido), `.claude/VERSION` (novo), `.claude/prd.md` (novo), `.claude/guides/` (movido de raiz e renomeado), `.claude/templates/` (movido de raiz), `.claude/rules/00-08` (atualizados), `.claude/rules/10-engenharia-agentica.md` (removido), `.claude/rules/11-integracao-codex.md` (removido), `.claude/enforcement.conf` (atualizado), `CLAUDE.md` (novo na raiz)
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** governanca — todas as sessoes futuras passam a operar sob v1.1.0; hooks referenciam novos caminhos de templates
+
+#### Criterios de Aceite
+- [x] CLAUDE.md presente na raiz como ponto de entrada
+- [x] .claude/VERSION criado com identificador v1.1.0
+- [x] .claude/prd.md adicionado
+- [x] Regras 00-08 atualizadas com refinamentos
+- [x] Regras 10 e 11 removidas (descontinuadas)
+- [x] Templates movidos para .claude/templates/
+- [x] Guides organizados em .claude/guides/
+
+#### Restricoes
+- Registro retroativo: a implementacao precede a task; o objetivo aqui e documentar e formalizar para conformidade com regra 00 e regra 8.1
+- Branch dedicada `chore/TASK-027-framework-v110` para nao misturar com escopo de TASK-026
+
+#### Referencias
+- Commit original: `d0ae26f` (2026-05-10) em feat/TASK-020-024-rust-preprocessing
+- Cherry-pick em chore branch: novo hash criado na sessao 2026-05-27
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-10 | — | Commit d0ae26f criado sem task registrada | implementacao realizada |
+| 2026-05-27 | 1 | Auditoria de branches identificou orfao; cherry-pick para chore branch dedicada; task registrada retroativamente | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-27
+- **Branch:** chore/TASK-027-framework-v110
+- **Commit(s):** d0ae26f (original, em feat/TASK-020-024) / cherry-pick em chore branch (hash novo)
+- **Avaliacao pos-implementacao:** aprovado retroativamente
+- **Observacoes:** Implementacao precedeu a task em ~17 dias. Registro retroativo serve para conformidade com regras 00 e 08, e para historico do projeto. Lecao registrada em Padroes Recorrentes do registry.
+
+---
+
 ### TASK-025
 - **Status:** concluida
 - **Modo:** desenvolvimento
