@@ -490,6 +490,59 @@ Registro retroativo de commit orfao identificado durante auditoria de branches e
 
 ---
 
+### TASK-026
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-05-26
+
+#### Objetivo
+Atualizar README.md parcialmente para refletir a esteira de preprocessing Rust (TASK-020/024/025) sem antecipar conteudo de batch inference e benchmark detalhado (reservados para TASK-023).
+
+#### Contexto
+Analise comparativa identificou ~7 divergencias entre README atual e estado real do projeto: diagrama de arquitetura ignora Rust, Project Structure nao lista rust/ e benchmarks/, contagens de teste incorretas, ausencia de comandos Rust, sem mencao a polars/unicode-segmentation. Como a branch atual ja contem TASK-020/024/025 prontas para PR/merge, manter o README defasado e desvantagem de portfolio (regra 12). Esta task antecipa o minimo necessario; a finalizacao completa fica com a TASK-023 (depende ainda de TASK-021 e TASK-022).
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `README.md`, `.claude/tasks.md`, `.claude/registry.md`
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** nenhum (somente documentacao)
+
+#### Criterios de Aceite
+- [x] Diagrama Mermaid inclui estagio Rust CLI antes do training
+- [x] Project Structure lista `rust/tweet-preprocessor/`, `benchmarks/`, `requirements-dev.txt`
+- [x] Engineering Decisions inclui uma linha sobre Rust CLI (com referencia ao 42x speedup, sem replicar tabela completa)
+- [x] Current Status inclui linha "Rust Preprocessing CLI: Done"
+- [x] Contagens de teste corrigidas: 12 preprocessing, 9 training, 7 rust
+- [x] Secao Running inclui comandos `cargo test` e build/uso da CLI Rust
+- [x] Stack referenciado no projeto inclui Rust (badge adicionado)
+
+#### Restricoes
+- Nao incluir tabela completa de benchmark (reservada para TASK-023)
+- Nao documentar pipeline completo Rust->Python end-to-end (reservada para TASK-023)
+- Nao adicionar instrucoes de docker/API (reservadas para TASK-010/012/013)
+
+#### Referencias
+- `rust/tweet-preprocessor/README.md` (fonte de verdade para CLI Rust)
+- `.claude/registry.md` linhas 34-36, 69-71 (estado atual)
+- TASK-023 (escopo completo do README final, depende de TASK-021/022)
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-05-26 | 1 | Task registrada apos analise comparativa README vs estado real | em andamento |
+| 2026-05-26 | 1 | README atualizado: badge Rust, diagrama com dual-path, Project Structure, Engineering Decisions row, Current Status, comandos cargo, contagens de teste corrigidas. 20 testes Python passando. | concluida |
+| 2026-05-27 | 2 | Branch dedicada criada, rebase para isolar commit orfao, force-push, rebase final apos merge de TASK-027 com resolucao trivial de conflito (renumeracao registry) | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-05-27
+- **Branch:** docs/TASK-026-readme-rust-section (mergeada via PR pendente)
+- **Commit(s):** 3daa5eb (rebase apos isolamento de TASK-027)
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Contagem real de testes Python: 12 preprocessing + 9 training = 21 total (1 marcado @slow, 20 rodam em CI). Registry anterior listava "12+8=20" — off-by-one corrigido nesta atualizacao. Mudancas pertencentes a TASK-023 deliberadamente omitidas: tabela completa de benchmark, pipeline end-to-end Rust->Python, instrucoes docker/API.
+
+---
+
 ### TASK-025
 - **Status:** concluida
 - **Modo:** desenvolvimento

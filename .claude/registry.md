@@ -35,6 +35,7 @@
 | 15 | 2026-05-07 | TASK-024 | minor | 4 arquivos — .gitignore, rust/README, benchmark, registry | aprovado | Correcoes do review Codex: emoji docs, benchmark parity/seed |
 | 16 | 2026-05-09 | TASK-025 | minor | 4 arquivos — requirements.txt, main.rs, Cargo.toml, tasks.md | aprovado | Auditoria: emoji multi-codepoint, deps, tasks reorganizadas |
 | 17 | 2026-05-10 | TASK-027 | major | 20 arquivos — .claude/ reestruturado, CLAUDE.md raiz | aprovado retroativamente | Framework v1.1.0. Registro retroativo em 2026-05-27 apos auditoria de branches (commit d0ae26f orfao). Isolado em chore branch dedicada |
+| 18 | 2026-05-26 | TASK-026 | minor | 1 arquivo — README.md | aprovado | Atualizacao parcial: Rust badge, diagrama dual-path, Project Structure, Engineering Decisions row, contagens corrigidas |
 
 ## Estado da Codebase
 
@@ -42,11 +43,11 @@
 
 - **Ultima atualizacao:** 2026-05-27
 - **Ultimo responsavel:** agente
-- **Branch ativa:** chore/TASK-027-framework-v110 (auditoria de branches em andamento — 2026-05-27)
+- **Branch ativa:** docs/TASK-026-readme-rust-section (PR aguardando merge — 2026-05-27)
 - **Dependencias alteradas recentemente:** nenhuma desde TASK-025
 - **Testes passando:** sim — 21 testes Python (12 preprocessing + 9 training, 1 marcado @slow) + 7 testes Rust
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-027 — Framework v1.1.0 registrado retroativamente apos isolar commit orfao
+- **Ultima task concluida:** TASK-026 — Atualizacao parcial do README com esteira Rust
 
 ## Pendencias Conhecidas
 
