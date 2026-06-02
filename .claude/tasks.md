@@ -487,8 +487,8 @@ O usuario adicionou `readme_model.md` na raiz — um template de portfolio com o
 
 #### Resultado
 - **Data de conclusao:** 2026-06-02
-- **Branch:** main (sugerida `docs/TASK-028-readme-portfolio-template` para o push)
-- **Commit(s):** pendente do desenvolvedor (etapa U do CRURA)
+- **Branch:** main
+- **Commit(s):** 63fb2e5 docs(readme): restructure readme following portfolio template
 - **Avaliacao pos-implementacao:** aprovado
 - **Observacoes:** Escopo deliberadamente nao antecipado: tabela completa de benchmark Python vs Rust (TASK-023), API Reference / Docker / Results fine-tuned (TASK-010/012/013). Divergencias corrigidas: README listava `requirements-dev.txt` inexistente e badge de status "yellow". Seção License omitida por ausencia de arquivo LICENSE na raiz.
 

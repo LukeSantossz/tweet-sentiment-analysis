@@ -44,7 +44,7 @@
 
 - **Ultima atualizacao:** 2026-06-02
 - **Ultimo responsavel:** agente
-- **Branch ativa:** main (sugerida branch dedicada `docs/TASK-028-readme-portfolio-template` antes do push — pendente do desenvolvedor)
+- **Branch ativa:** main (TASK-028 commitada e pushada — commit 63fb2e5)
 - **Dependencias alteradas recentemente:** nenhuma desde TASK-025
 - **Testes passando:** sim — 21 testes Python (12 preprocessing + 9 training, 1 marcado @slow) + 7 testes Rust
 - **Divergencias externas pendentes:** nenhuma
