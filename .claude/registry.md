@@ -36,18 +36,19 @@
 | 16 | 2026-05-09 | TASK-025 | minor | 4 arquivos — requirements.txt, main.rs, Cargo.toml, tasks.md | aprovado | Auditoria: emoji multi-codepoint, deps, tasks reorganizadas |
 | 17 | 2026-05-10 | TASK-027 | major | 20 arquivos — .claude/ reestruturado, CLAUDE.md raiz | aprovado retroativamente | Framework v1.1.0. Registro retroativo em 2026-05-27 apos auditoria de branches (commit d0ae26f orfao). Isolado em chore branch dedicada |
 | 18 | 2026-05-26 | TASK-026 | minor | 1 arquivo — README.md | aprovado | Atualizacao parcial: Rust badge, diagrama dual-path, Project Structure, Engineering Decisions row, contagens corrigidas |
+| 19 | 2026-06-02 | TASK-028 | minor | 1 arquivo — README.md | aprovado | Reestruturacao para template de portfolio (readme_model.md); correcao requirements-dev.txt inexistente e remocao badge "yellow"; Known Issues adicionada |
 
 ## Estado da Codebase
 
 > Atualizado a cada implementacao ou verificacao pos-pull. Reflete o snapshot mais recente do projeto.
 
-- **Ultima atualizacao:** 2026-05-27
+- **Ultima atualizacao:** 2026-06-02
 - **Ultimo responsavel:** agente
-- **Branch ativa:** docs/TASK-026-readme-rust-section (PR aguardando merge — 2026-05-27)
+- **Branch ativa:** main (sugerida branch dedicada `docs/TASK-028-readme-portfolio-template` antes do push — pendente do desenvolvedor)
 - **Dependencias alteradas recentemente:** nenhuma desde TASK-025
 - **Testes passando:** sim — 21 testes Python (12 preprocessing + 9 training, 1 marcado @slow) + 7 testes Rust
 - **Divergencias externas pendentes:** nenhuma
-- **Ultima task concluida:** TASK-026 — Atualizacao parcial do README com esteira Rust
+- **Ultima task concluida:** TASK-028 — Reestruturacao do README para template de portfolio
 
 ## Pendencias Conhecidas
 
@@ -85,4 +86,5 @@
 > Espaco para anotacoes pontuais sobre contextos que influenciam futuras sessoes.
 
 - [2026-05-01] Migracao retroativa: tasks 1-6 foram implementadas antes do sistema .claude estar operacional. Documentacao reconstruida a partir do git log e do arquivo tasks_para_mapear.
+- [2026-06-02] TASK-028: reconhecimento revelou que `requirements-dev.txt` (referenciado no README e citado na TASK-017) nao existe mais no disco — `ruff` e `pytest` foram consolidados em `requirements.txt`. README corrigido para nao listar o arquivo fantasma. Nao existe `LICENSE` na raiz (apenas o subprojeto Rust declara MIT internamente); seção License omitida do README para nao linkar arquivo inexistente.
 - [2026-05-07] Review adversarial Codex da TASK-020 identificou 7 findings: (HIGH) paridade emoji multi-codepoint — documentado; (HIGH) benchmark reporta speedup sem parity — corrigido; (MEDIUM) row count validation — corrigido; (MEDIUM) benchmark seed — corrigido; (MEDIUM) null handling — aceito; (MEDIUM) emoji loop allocation — aceito (premature optimization); (LOW) README JSON — corrigido.

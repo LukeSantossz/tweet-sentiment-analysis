@@ -440,6 +440,60 @@ Task final do projeto. O README deve ser suficiente para que um recrutador ou en
 
 > Tasks finalizadas. Movidas para ca apos conclusao e atualizacao do Registro de Projeto (`registry.md`). Nunca remova entradas — o historico e cumulativo.
 
+### TASK-028
+- **Status:** concluida
+- **Modo:** desenvolvimento
+- **Complexidade:** minor
+- **Data de criacao:** 2026-06-02
+
+#### Objetivo
+Reestruturar o README.md seguindo o template de portfolio (readme_model.md), refletindo o estado real atual do projeto.
+
+#### Contexto
+O usuario adicionou `readme_model.md` na raiz — um template de portfolio com ordem canonica de secoes (What It Does, What It Is, Tech Stack, Architecture, Engineering Decisions, Results, Getting Started, Project Structure, Project Status, Known Issues). O README atual segue um formato anterior (TASK-019/026) e contem divergencias com o estado real: lista `requirements-dev.txt` (inexistente — deps dev migraram para requirements.txt), badge de status "yellow" (o template proibe badge que comunica fraqueza). Esta task aplica o template refletindo o estado atual; proximos passos vao para a secao reservada Project Status -> Pending.
+
+#### Escopo Tecnico
+- **Arquivos/modulos envolvidos:** `README.md`, `.claude/tasks.md`, `.claude/registry.md`
+- **Dependencias necessarias:** nenhuma
+- **Impacto em funcionalidades existentes:** nenhum (somente documentacao)
+
+#### Criterios de Aceite
+- [x] README segue a ordem canonica do template (What It Does -> Known Issues)
+- [x] Tech Stack em tabela (Layer | Technology) incluindo Python e Rust
+- [x] Engineering Decisions com coluna "Alternative considered" (3 colunas)
+- [x] Results apresenta apenas dados reais (baseline zero-shot 70%/0.71); fine-tuned marcado como pendente
+- [x] Secao obrigatoria Known Issues & Limitations presente com limitacoes reais
+- [x] Project Status com Done/Pending refletindo estado real (proximos passos em Pending)
+- [x] Project Structure corrigido: sem `requirements-dev.txt`, com arvore real
+- [x] Badge "yellow" de status removido; sem seção License (nao existe LICENSE)
+
+#### Restricoes
+- Nao inventar metricas de fine-tuning (TASK-007 nunca executou, outputs/ vazio)
+- Nao duplicar a tabela completa de benchmark Python vs Rust no README raiz (reservada para TASK-023) — citar o 42x e linkar o README do Rust
+- Nao adicionar API Reference / instrucoes Docker (reservadas para TASK-010/012/013)
+- Nao adicionar seção License com link para LICENSE inexistente
+
+#### Referencias
+- `readme_model.md` (template de portfolio, fonte da forma)
+- `rust/tweet-preprocessor/README.md` (benchmark e divergencias de emoji)
+- `.claude/registry.md` (estado real, decisoes tecnicas, pendencias)
+
+#### Log de Andamento
+
+| Data | Sessao | Acao Realizada | Status ao Final |
+|------|--------|----------------|-----------------|
+| 2026-06-02 | 1 | Reconhecimento, verificacao de estado (LICENSE/requirements-dev.txt inexistentes), task registrada | em andamento |
+| 2026-06-02 | 1 | README reescrito no template de portfolio refletindo estado real; registry atualizado; avaliacao pos-implementacao aprovada | concluida |
+
+#### Resultado
+- **Data de conclusao:** 2026-06-02
+- **Branch:** main (sugerida `docs/TASK-028-readme-portfolio-template` para o push)
+- **Commit(s):** pendente do desenvolvedor (etapa U do CRURA)
+- **Avaliacao pos-implementacao:** aprovado
+- **Observacoes:** Escopo deliberadamente nao antecipado: tabela completa de benchmark Python vs Rust (TASK-023), API Reference / Docker / Results fine-tuned (TASK-010/012/013). Divergencias corrigidas: README listava `requirements-dev.txt` inexistente e badge de status "yellow". Seção License omitida por ausencia de arquivo LICENSE na raiz.
+
+---
+
 ### TASK-027
 - **Status:** concluida
 - **Modo:** desenvolvimento

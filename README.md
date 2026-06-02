@@ -1,18 +1,36 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange?logo=rust&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
-![Status](https://img.shields.io/badge/status-in%20development-yellow)
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
 
-# tweet-sentiment-analysis
+# tweet-sentiment-analysis — Twitter-tuned RoBERTa sentiment classification
 
-> Fine-tuned RoBERTa model for 3-class sentiment classification on tweets, evaluated against the TweetEval benchmark.
+> A domain-tuned RoBERTa pipeline that classifies tweets as negative, neutral, or positive — paired with a Rust preprocessing CLI measured at **42x** the Python throughput on 100K tweets.
 
-## Why This Exists
+---
 
-Generic sentiment models underperform on social media text. Tweets contain abbreviations, slang, @mentions, hashtags, and emojis that break assumptions built into models trained on formal corpora. This project fine-tunes a Twitter-specialized RoBERTa variant (`cardiffnlp/twitter-roberta-base-sentiment`) on the TweetEval benchmark dataset to classify tweets as **negative**, **neutral**, or **positive** — and measures the gain over the zero-shot baseline.
+## What It Does
 
-The zero-shot baseline achieves 70% accuracy and 0.71 macro F1. The fine-tuning pipeline is built to surpass these numbers on the same test split (12,284 samples).
+Classifies the sentiment of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
+
+- **3-class sentiment classification** — labels tweets as negative, neutral, or positive against the TweetEval benchmark.
+- **Tweet-aware text cleaning** — normalizes URLs, @mentions, hashtags, and emojis that break models trained on formal text.
+- **Scale preprocessing** — a Rust CLI cleans 1M+ tweet workloads in parallel, ~42x faster than the Python reference.
+- **Reproducible baseline** — a zero-shot evaluation (70% accuracy, 0.71 macro F1) sets the bar the fine-tuning run aims to beat.
+
+## What It Is
+
+`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces a sentiment classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It exists because generic sentiment models underperform on tweets — abbreviations, slang, mentions, hashtags, and emojis violate assumptions baked into models trained on formal corpora. The project fine-tunes `cardiffnlp/twitter-roberta-base-sentiment` on the TweetEval dataset and measures the gain over its zero-shot baseline on the same 12,284-sample test split.
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Language | Python 3.10+ · Rust 1.70+ |
+| ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment`) · PyTorch |
+| Data | TweetEval via HF `datasets` · scikit-learn · pandas |
+| Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` · `unicode-segmentation` |
+| Tooling / CI | Ruff · pytest · `cargo test` · GitHub Actions |
 
 ## Architecture
 
@@ -44,30 +62,39 @@ flowchart LR
     C --> D --> E
 ```
 
-The Python pipeline (`src/preprocessing.py`) is the reference implementation used by tests and notebooks. The Rust CLI (`rust/tweet-preprocessor`) is the production path for large-volume preprocessing, with measured speedups up to 42x on 100K tweets. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for details.
+Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is the reference implementation used by tests and notebooks, while `rust/tweet-preprocessor` is the production path for large-volume data. Both feed the same Trainer-based fine-tuning stage. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its full benchmark table.
 
 ## Engineering Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| **Model: `twitter-roberta-base-sentiment`** | Pre-trained on ~58M tweets — domain-aligned, no need for domain adaptation from scratch. |
-| **`max_length=128` tokens** | 99th percentile of token lengths is ~55. 128 is conservative but avoids any truncation artifacts. |
-| **Macro F1 as primary metric** | Dataset is imbalanced (neutral ~45%, positive ~30%, negative ~22%). Macro F1 penalizes poor performance on minority classes. |
-| **URLs replaced with `[URL]` token** | Preserves signal that a URL was present without introducing noise from the URL content itself. |
-| **Emojis converted via `emoji.demojize()`** | Transforms emojis into descriptive text (e.g., `:fire:`) readable by the tokenizer, preserving sentiment signal. |
-| **Early stopping with `patience=2`** | Prevents overfitting on the relatively small training set without manual epoch tuning. |
-| **CPU-only PyTorch in CI** | Avoids ~2GB CUDA download in the pipeline. Slow tests requiring GPU/network are excluded via pytest marker. |
-| **Ruff for linting** | Fast, Rust-based linter. Rules E/F/I with `line-length=120`. Notebooks excluded (not production code). |
-| **Rust CLI for production preprocessing** | Python reference pipeline is the source of truth; a Rust port (`rust/tweet-preprocessor`) handles 1M+ tweet workloads with Rayon parallelism and Polars I/O. Measured 42x speedup at 100K samples. Parity validated on single-codepoint emojis; multi-codepoint sequences handled via grapheme clusters. |
+| Decision | Alternative considered | Why this approach |
+| --- | --- | --- |
+| Base model `twitter-roberta-base-sentiment` | Generic `roberta-base` / training from scratch | Pre-trained on ~58M tweets — domain-aligned, skips costly domain adaptation. |
+| `max_length=128` tokens | `max_length=64` (99th pct ≈ 55 tokens) | A conservative margin that removes truncation artifacts at negligible cost. |
+| Macro F1 as primary metric | Plain accuracy | Dataset is imbalanced (neutral ~45% / positive ~30% / negative ~22%); macro F1 penalizes minority-class failures. |
+| URLs → `[URL]` token | Strip URLs entirely | Preserves the signal that a link was present without the noise of its content. |
+| Emojis → `emoji.demojize()` | Strip emojis | Keeps sentiment-bearing emoji as tokenizer-readable text (e.g. `:fire:`). |
+| Early stopping `patience=2` | Fixed epoch count | Prevents overfitting on a small train set without manual epoch tuning. |
+| Rust CLI for scale preprocessing | Python-only pipeline | 42x measured speedup at 100K tweets for 1M+ workloads, via Rayon parallelism and Polars I/O. |
+| CPU-only PyTorch in CI | Full CUDA build | Avoids a ~2GB CUDA download; GPU/network tests are excluded via a pytest marker. |
+
+## Results
+
+The fine-tuning run has not been executed yet (see Project Status), so the only measured model result today is the zero-shot baseline on the full test split (12,284 samples):
+
+| Model | Accuracy | Macro F1 |
+| --- | --- | --- |
+| **Zero-shot baseline** | **70%** | **0.71** |
+| Fine-tuned (pending) | — | — |
+
+Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — performance is even across classes, which makes macro F1 a fair single-number target for the fine-tuned model to beat.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+
-- pip
-- (Optional) CUDA 11.x+ for GPU acceleration
-- (Optional) Rust 1.70+ via [rustup](https://rustup.rs/) — only needed to build the high-throughput preprocessing CLI
+- Python 3.10+ and pip
+- (Optional) CUDA 11.x+ for GPU-accelerated fine-tuning
+- (Optional) Rust 1.70+ via [rustup](https://rustup.rs/) — only to build the scale preprocessing CLI
 
 ### Installation
 
@@ -85,88 +112,91 @@ pip install -r requirements.txt
 ### Running
 
 ```bash
-# Run the fine-tuning script
+# Fine-tuning script (requires GPU for a practical runtime)
 python -m src.training
 
-# Run Python tests
-pytest tests/ -m "not slow" -v
-
-# Run linter
+# Linter
 ruff check . && ruff format --check .
 
-# Launch Jupyter for analysis notebooks
+# Analysis notebooks
 jupyter notebook
 ```
 
 #### Rust preprocessing CLI (optional, for scale)
 
 ```bash
-# Build release binary
+# Build the release binary
 cd rust/tweet-preprocessor && cargo build --release
 
-# Preprocess a CSV/Parquet of tweets into cleaned Parquet
+# Clean a CSV/Parquet of tweets into cleaned Parquet
 ./target/release/tweet-preprocessor -i data/tweets.csv -o data/tweets_clean.parquet
-
-# Run Rust unit tests
-cargo test
 ```
 
-### Environment Variables
+### Tests
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `HF_DATASETS_CACHE` | Hugging Face Datasets cache directory | `~/.cache/huggingface/datasets` |
-| `TRANSFORMERS_CACHE` | Pre-trained model cache directory | `~/.cache/huggingface/transformers` |
-| `CUDA_VISIBLE_DEVICES` | GPU index(es) to use | `0` |
+```bash
+# Python tests (skips the slow, GPU/network-bound suite)
+pytest tests/ -m "not slow" -v
+
+# Rust tests
+cd rust/tweet-preprocessor && cargo test
+```
 
 ## Project Structure
 
 ```
 tweet-sentiment-analysis/
 ├── src/
-│   ├── __init__.py
 │   ├── preprocessing.py            # Python tweet cleaning pipeline (reference impl)
-│   └── training.py                 # Fine-tuning script with HuggingFace Trainer API
+│   └── training.py                 # Fine-tuning script — HuggingFace Trainer API
 ├── rust/
 │   └── tweet-preprocessor/         # High-throughput preprocessing CLI (Rayon + Polars)
 │       ├── src/main.rs             # Pipeline mirroring src/preprocessing.py
-│       ├── Cargo.toml              # Rust dependencies (clap, polars, rayon, unicode-segmentation)
-│       └── README.md               # CLI usage and benchmark details
+│       ├── Cargo.toml              # clap · polars · rayon · unicode-segmentation
+│       └── README.md               # CLI usage and benchmark table
 ├── benchmarks/
-│   └── preprocessing_benchmark.py  # Python vs Rust speedup measurement with parity check
+│   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
 ├── tests/
-│   ├── test_preprocessing.py       # 12 unit tests for preprocessing functions
-│   └── test_training.py            # 9 tests for training module (config, metrics, constants)
+│   ├── test_preprocessing.py       # 12 unit tests for the cleaning functions
+│   └── test_training.py            # 9 tests for the training module (config, metrics)
 ├── notebooks/
-│   ├── 01_eda.ipynb                # Exploratory data analysis: class distribution, text patterns
+│   ├── 01_eda.ipynb                # Class distribution, noise patterns
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
 │   └── 03_inference_baseline.ipynb # Zero-shot baseline: 70% acc, 0.71 macro F1
-├── .github/
-│   └── workflows/
-│       └── ci.yml                  # GitHub Actions: lint (ruff) + test (pytest)
-├── .claude/                        # AI agent governance rules and project registry
+├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest)
+├── .claude/                        # AI-agent governance rules and project registry
 ├── pyproject.toml                  # Ruff and pytest configuration
-├── requirements.txt                # Python runtime dependencies
-├── requirements-dev.txt            # Python dev dependencies (ruff, pytest)
-└── README.md
+└── requirements.txt                # Python dependencies (runtime + ruff/pytest)
 ```
 
-## Current Status
+## Project Status
 
-| Stage | Status | Details |
-|-------|--------|---------|
-| Exploratory Data Analysis | Done | Class imbalance identified, noise patterns mapped |
-| Preprocessing Pipeline (Python) | Done | 6 cleaning functions, 12 passing tests |
-| Tokenization Analysis | Done | max_length=128 validated at 99th percentile |
-| Zero-shot Baseline | Done | 70% accuracy, 0.71 macro F1 |
-| Training Script | Done | Trainer API, early stopping, CLI args |
-| Training Module Tests | Done | 9 tests covering config, metrics, constants |
-| CI Pipeline | Done | GitHub Actions with ruff + pytest |
-| Rust Preprocessing CLI | Done | Rayon + Polars, 7 passing tests, 42x speedup at 100K |
-| Fine-tuning Execution | Pending | Script ready, awaiting GPU execution |
-| Batch Inference (1M+ tweets) | Pending | Planned in TASK-021 |
-| Benchmark Documentation | Pending | Planned in TASK-022 / TASK-023 |
-| Comparative Evaluation | Pending | Baseline vs fine-tuned, per-class analysis |
-| REST API (FastAPI) | Planned | POST /predict endpoint |
-| Demo UI (Gradio) | Planned | Interactive frontend |
-| Docker Containerization | Planned | Dockerfile + docker-compose |
+**Status: in development**
+
+### Done
+
+- [x] Exploratory data analysis — class imbalance and noise patterns mapped
+- [x] Python preprocessing pipeline — 6 cleaning functions, 12 passing tests
+- [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
+- [x] Zero-shot baseline — 70% accuracy, 0.71 macro F1
+- [x] Training script — Trainer API with early stopping and CLI args
+- [x] Training module tests — 9 tests (config, metrics, constants)
+- [x] CI pipeline — GitHub Actions with ruff + pytest
+- [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
+
+### Pending
+
+- [ ] Execute the fine-tuning run (GPU-bound) and save the best checkpoint
+- [ ] Comparative evaluation — baseline vs fine-tuned, per-class analysis
+- [ ] Batch inference for 1M+ tweets
+- [ ] Full Python-vs-Rust benchmark documented in this README
+- [ ] REST API (FastAPI) and demo UI (Gradio)
+- [ ] Docker containerization
+
+## Known Issues & Limitations
+
+- **No fine-tuned model yet** — `outputs/` is empty; every metric reported here is the zero-shot baseline, not a tuned model. Resolves once the training run executes on a GPU.
+- **Training is GPU-bound** — a CPU-only run was estimated at ~25h, so fine-tuning is deferred to a GPU environment.
+- **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
+- **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
+- **Reference pipeline not wired into training** — `src/training.py` loads cleaned data straight from the HF Hub, so `src/preprocessing.py` currently serves tests, notebooks, and the Rust port's parity reference rather than the live training path.
