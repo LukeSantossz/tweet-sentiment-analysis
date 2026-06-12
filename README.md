@@ -99,8 +99,9 @@ Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — perfor
 ### Installation
 
 ```bash
-git clone https://github.com/LukeSantossz/tweet-sentiment-analysis.git
+git clone --recurse-submodules https://github.com/LukeSantossz/tweet-sentiment-analysis.git
 cd tweet-sentiment-analysis
+# already cloned without --recurse-submodules? run: git submodule update --init
 
 python -m venv venv
 source venv/bin/activate   # Linux / macOS
@@ -164,6 +165,8 @@ tweet-sentiment-analysis/
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
 │   └── 03_inference_baseline.ipynb # Zero-shot baseline: 70% acc, 0.71 macro F1
 ├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest)
+├── .standards/                     # Development standards (my-framework submodule)
+├── CLAUDE.md                       # Entry point binding the standards for AI-assisted work
 ├── pyproject.toml                  # Ruff and pytest configuration
 └── requirements.txt                # Python dependencies (runtime + ruff/pytest)
 ```
