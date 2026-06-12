@@ -164,7 +164,6 @@ tweet-sentiment-analysis/
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
 │   └── 03_inference_baseline.ipynb # Zero-shot baseline: 70% acc, 0.71 macro F1
 ├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest)
-├── .claude/                        # AI-agent governance rules and project registry
 ├── pyproject.toml                  # Ruff and pytest configuration
 └── requirements.txt                # Python dependencies (runtime + ruff/pytest)
 ```
