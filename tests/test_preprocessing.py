@@ -9,8 +9,8 @@ from src.preprocessing import (
 
 
 def test_remove_urls():
-    tweet_data = "Aqui está o link https://site.com para ver"
-    output_data = "Aqui está o link [URL] para ver"
+    tweet_data = "Here is the link https://site.com to see"
+    output_data = "Here is the link [URL] to see"
     result_info = remove_urls(tweet_data)
 
     assert result_info == output_data
@@ -25,56 +25,56 @@ def test_remove_urls_border():
 
 
 def test_remove_mentions():
-    mention_data = "E aí @joao, beleza?"
-    output_data = "E aí @user, beleza?"
+    mention_data = "Hey @joao, all good?"
+    output_data = "Hey @user, all good?"
     result_info = remove_mentions(mention_data)
 
     assert result_info == output_data
 
 
 def test_remove_mult_mentions():
-    mention_data = "Feliz ano novo @ana e @carlos!"
-    output_data = "Feliz ano novo @user e @user!"
+    mention_data = "Happy new year @ana and @carlos!"
+    output_data = "Happy new year @user and @user!"
     result_info = remove_mentions(mention_data)
 
     assert result_info == output_data
 
 
 def test_normalize_hashtags():
-    hashtag_data = "Adoro programar em #python"
-    output_data = "Adoro programar em python"
+    hashtag_data = "I love programming in #python"
+    output_data = "I love programming in python"
     result_info = normalize_hashtags(hashtag_data)
 
     assert result_info == output_data
 
 
 def test_normalize_hashtags_num():
-    hashtag_data = "Adoro programar em #python3"
-    output_data = "Adoro programar em python3"
+    hashtag_data = "I love programming in #python3"
+    output_data = "I love programming in python3"
     result_info = normalize_hashtags(hashtag_data)
 
     assert result_info == output_data
 
 
 def test_to_lowercase():
-    lowercase_data = "Olá Mundo"
-    output_data = "olá mundo"
+    lowercase_data = "Hello World"
+    output_data = "hello world"
     result_info = to_lowercase(lowercase_data)
 
     assert result_info == output_data
 
 
 def test_to_lowercase_border():
-    lowercase_data = "OLÁ MUNDO"
-    output_data = "olá mundo"
+    lowercase_data = "HELLO WORLD"
+    output_data = "hello world"
     result_info = to_lowercase(lowercase_data)
 
     assert result_info == output_data
 
 
 def test_handle_emojis():
-    emoji_data = "Estou feliz 😊"
-    output_data = "Estou feliz :smiling_face_with_smiling_eyes:"
+    emoji_data = "I am happy 😊"
+    output_data = "I am happy :smiling_face_with_smiling_eyes:"
     result_info = handle_emojis(emoji_data)
 
     assert result_info == output_data
@@ -89,16 +89,16 @@ def test_handle_emojis_border():
 
 
 def test_clean_tweet_text():
-    tweet_data = "E aí @joao, beleza? Adoro programar em #python 😊 https://site.com"
-    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [url]"
+    tweet_data = "Hey @joao, all good? I love programming in #python 😊 https://site.com"
+    output_data = "hey @user, all good? i love programming in python :smiling_face_with_smiling_eyes: [url]"
     result_info = clean_tweet_text(tweet_data)
 
     assert result_info == output_data
 
 
 def test_clean_tweet_text_border():
-    tweet_data = "  E aí @joao, beleza? Adoro programar em #python 😊 https://site.com"
-    output_data = "e aí @user, beleza? adoro programar em python :smiling_face_with_smiling_eyes: [url]"
+    tweet_data = "  Hey @joao, all good? I love programming in #python 😊 https://site.com"
+    output_data = "hey @user, all good? i love programming in python :smiling_face_with_smiling_eyes: [url]"
     result_info = clean_tweet_text(tweet_data)
 
     assert result_info == output_data
