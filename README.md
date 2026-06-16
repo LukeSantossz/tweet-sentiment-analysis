@@ -2,6 +2,7 @@
 ![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange?logo=rust&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 # tweet-sentiment-analysis — Twitter-tuned RoBERTa sentiment classification
 
@@ -202,3 +203,7 @@ tweet-sentiment-analysis/
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
 - **Reference pipeline not wired into training** — `src/training.py` loads cleaned data straight from the HF Hub, so `src/preprocessing.py` currently serves tests, notebooks, and the Rust port's parity reference rather than the live training path.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
