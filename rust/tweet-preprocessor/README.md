@@ -54,6 +54,14 @@ The binary will be at `target/release/tweet-preprocessor` (or `.exe` on Windows)
 
 > **Note:** JSON support was removed due to polars 0.46 API incompatibility.
 
+### Null Handling
+
+Null or missing values in the text column are treated as **empty strings** (cleaned to `""`),
+not skipped or treated as errors. This keeps the output row-aligned with the input and means a
+single missing value never aborts a large batch. The behaviour is covered by tests for both CSV
+and Parquet inputs. (`src/preprocessing.py` assumes non-null `str` input, so this CLI defines the
+null policy for scale-time processing.)
+
 ## Preprocessing Pipeline
 
 The pipeline mirrors `src/preprocessing.py` for common cases:

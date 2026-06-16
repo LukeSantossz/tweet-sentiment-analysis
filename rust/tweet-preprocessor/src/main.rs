@@ -85,6 +85,23 @@ fn process_tweets_parallel(texts: &[String], pb: &ProgressBar) -> Vec<String> {
         .collect()
 }
 
+/// Extracts the text column as owned strings, mapping null / missing values to an
+/// empty string.
+///
+/// Null policy is **empty-string** (not skip or hard error): a missing tweet is
+/// treated as empty text. This keeps the output row-aligned with the input (the CLI
+/// appends a `text_cleaned` column to the existing frame) and never lets a single
+/// null abort a multi-million-row batch. `src/preprocessing.py` assumes non-null
+/// `str` input, so this CLI is where the scale-time null policy is defined.
+fn extract_text_column(df: &DataFrame, column: &str) -> PolarsResult<Vec<String>> {
+    Ok(df
+        .column(column)?
+        .str()?
+        .into_iter()
+        .map(|opt| opt.unwrap_or("").to_string())
+        .collect())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
@@ -127,12 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Loaded {} rows", row_count);
 
     println!("\n[2/4] Extracting text column...");
-    let text_series = df
-        .column(&args.text_column)?
-        .str()?
-        .into_iter()
-        .map(|opt| opt.unwrap_or("").to_string())
-        .collect::<Vec<_>>();
+    let text_series = extract_text_column(&df, &args.text_column)?;
 
     println!("\n[3/4] Processing tweets...");
     let pb = ProgressBar::new(row_count as u64);
@@ -245,7 +257,9 @@ mod tests {
         // Test ZWJ sequence (family emoji)
         let result_family = handle_emojis("Family 👨‍👩‍👧");
         assert!(
-            !result_family.contains("👨") && !result_family.contains("👩") && !result_family.contains("👧"),
+            !result_family.contains("👨")
+                && !result_family.contains("👩")
+                && !result_family.contains("👧"),
             "ZWJ family should be converted: {}",
             result_family
         );
@@ -260,5 +274,59 @@ mod tests {
         assert!(result.contains("[url]"));
         assert!(result.contains(":smiling_face_with_smiling_eyes:"));
         assert_eq!(result, result.to_lowercase());
+    }
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("twpp_test_{}_{}", std::process::id(), name))
+    }
+
+    #[test]
+    fn test_extract_text_column_maps_null_to_empty() {
+        let df = polars::df!("text" => &[Some("hello @joe"), None, Some("hi")]).unwrap();
+        let texts = extract_text_column(&df, "text").unwrap();
+        assert_eq!(
+            texts,
+            vec!["hello @joe".to_string(), String::new(), "hi".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_null_handling_csv() {
+        // Row 2 has a missing text field; it must clean to an empty string.
+        let csv = "id,text\n1,hello\n2,\n3,world\n";
+        let path = temp_path("null.csv");
+        std::fs::write(&path, csv).unwrap();
+
+        let df = CsvReadOptions::default()
+            .try_into_reader_with_file_path(Some(path.clone()))
+            .unwrap()
+            .finish()
+            .unwrap();
+        let texts = extract_text_column(&df, "text").unwrap();
+        std::fs::remove_file(&path).ok();
+
+        assert_eq!(
+            texts,
+            vec!["hello".to_string(), String::new(), "world".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_null_handling_parquet() {
+        let mut df = polars::df!("text" => &[Some("hello"), None, Some("world")]).unwrap();
+        let path = temp_path("null.parquet");
+
+        let file = std::fs::File::create(&path).unwrap();
+        ParquetWriter::new(file).finish(&mut df).unwrap();
+
+        let file = std::fs::File::open(&path).unwrap();
+        let df_read = ParquetReader::new(file).finish().unwrap();
+        let texts = extract_text_column(&df_read, "text").unwrap();
+        std::fs::remove_file(&path).ok();
+
+        assert_eq!(
+            texts,
+            vec!["hello".to_string(), String::new(), "world".to_string()]
+        );
     }
 }
