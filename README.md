@@ -16,7 +16,7 @@ Classifies the sentiment of social-media text using a Twitter-specialized RoBERT
 
 - **3-class sentiment classification** — labels tweets as negative, neutral, or positive against the TweetEval benchmark.
 - **Tweet-aware text cleaning** — normalizes URLs, @mentions, hashtags, and emojis that break models trained on formal text.
-- **Scale preprocessing** — a Rust CLI cleans 1M+ tweet workloads in parallel, ~42x faster than the Python reference.
+- **Scale preprocessing** — a Rust CLI cleans 1M+ tweet workloads in parallel, a parity-validated 28.5x faster than the Python reference at 1M tweets (up to 42x at 100K on a faster single machine).
 - **Reproducible baseline** — a zero-shot evaluation (70% accuracy, 0.71 macro F1) sets the bar the fine-tuning run aims to beat.
 
 ## What It Is
@@ -75,7 +75,7 @@ Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is t
 | URLs → `[URL]` token | Strip URLs entirely | Preserves the signal that a link was present without the noise of its content. |
 | Emojis → `emoji.demojize()` | Strip emojis | Keeps sentiment-bearing emoji as tokenizer-readable text (e.g. `:fire:`). |
 | Early stopping `patience=2` | Fixed epoch count | Prevents overfitting on a small train set without manual epoch tuning. |
-| Rust CLI for scale preprocessing | Python-only pipeline | 42x measured speedup at 100K tweets for 1M+ workloads, via Rayon parallelism and Polars I/O. |
+| Rust CLI for scale preprocessing | Python-only pipeline | Parity-validated speedup that grows with scale: **28.5x at 1M** tweets on 4 vCPUs (42x at 100K on a faster single machine), via Rayon parallelism and Polars I/O. |
 | CPU-only PyTorch in CI | Full CUDA build | Avoids a ~2GB CUDA download; GPU/network tests are excluded via a pytest marker. |
 
 ## Results
