@@ -14,27 +14,27 @@ def remove_urls(text: str) -> str:
 
 
 def remove_mentions(text: str) -> str:
-    """Substitui @usuario por token @user."""
+    """Replace @username with the @user token."""
     return re.sub(mention_pattern, "@user", text)
 
 
 def normalize_hashtags(text: str) -> str:
-    """Remove o símbolo # mantendo o texto da hashtag."""
+    """Remove the # symbol while keeping the hashtag text."""
     return re.sub(hashtag_pattern, r"\1", text)
 
 
 def to_lowercase(text: str) -> str:
-    """Converte texto para minúsculas."""
+    """Convert text to lowercase."""
     return text.lower()
 
 
 def handle_emojis(text: str) -> str:
-    """Converte emojis em texto descritivo usando notação :nome_do_emoji:."""
+    """Convert emojis to descriptive text using the :emoji_name: notation."""
     return emoji.demojize(text)
 
 
 def clean_tweet_text(text: str) -> str:
-    """Encadeia todas as etapas na ordem correta."""
+    """Chain all cleaning steps in the correct order."""
     text = remove_urls(text)
     text = remove_mentions(text)
     text = normalize_hashtags(text)
