@@ -23,15 +23,17 @@ Usage:
 """
 
 import argparse
-from typing import Dict
 
 import numpy as np
-from datasets import DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     EarlyStoppingCallback,
+    EvalPrediction,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
     Trainer,
     TrainingArguments,
 )
@@ -45,7 +47,7 @@ DEFAULT_OUTPUT_DIR = "./outputs/finetuned-model"
 LABEL_NAMES = ["negative", "neutral", "positive"]
 
 
-def load_tokenizer_and_model():
+def load_tokenizer_and_model() -> tuple[PreTrainedTokenizerBase, PreTrainedModel]:
     """Load the pre-trained tokenizer and model."""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -62,7 +64,7 @@ def load_tweet_eval_dataset() -> DatasetDict:
     return load_dataset(DATASET_NAME, DATASET_CONFIG)
 
 
-def tokenize_dataset(dataset: DatasetDict, tokenizer) -> DatasetDict:
+def tokenize_dataset(dataset: DatasetDict, tokenizer: PreTrainedTokenizerBase) -> DatasetDict:
     """
     Tokenize the dataset using the provided tokenizer.
 
@@ -91,7 +93,7 @@ def tokenize_dataset(dataset: DatasetDict, tokenizer) -> DatasetDict:
     return tokenized
 
 
-def compute_metrics(eval_pred) -> Dict[str, float]:
+def compute_metrics(eval_pred: EvalPrediction) -> dict[str, float]:
     """
     Compute accuracy and macro F1-score for evaluation.
 
@@ -159,11 +161,11 @@ def create_training_args(
 
 
 def create_trainer(
-    model,
-    tokenizer,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
     training_args: TrainingArguments,
-    train_dataset,
-    eval_dataset,
+    train_dataset: Dataset,
+    eval_dataset: Dataset,
 ) -> Trainer:
     """
     Create a Trainer instance with the given configuration.
@@ -194,7 +196,7 @@ def train(
     learning_rate: float = 2e-5,
     per_device_train_batch_size: int = 16,
     per_device_eval_batch_size: int = 32,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Execute the full fine-tuning pipeline.
 
@@ -254,7 +256,7 @@ def train(
     return eval_results
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Fine-tune Twitter-RoBERTa on TweetEval sentiment dataset")
     parser.add_argument(
