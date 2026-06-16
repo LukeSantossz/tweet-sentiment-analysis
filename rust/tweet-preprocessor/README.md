@@ -96,18 +96,30 @@ See `benchmarks/preprocessing_benchmark.py` for comparative benchmarks.
 
 ### Measured Performance
 
+Throughput is environment-dependent, so the **speedup factor** (the ratio) is the portable
+headline — and it grows with scale as the Rust startup overhead amortizes. Both runs validate
+identical Python/Rust output (parity) at every size.
+
+**Workstation — Windows 11** (single machine):
+
 | Dataset Size | Python | Rust | Speedup |
 |--------------|--------|------|---------|
 | 1,000 | 0.068s (14.8k/s) | 0.033s (30k/s) | **2.1x** |
 | 10,000 | 0.619s (16.2k/s) | 0.060s (166k/s) | **10.3x** |
 | 100,000 | 11.29s (8.9k/s) | 0.267s (374k/s) | **42.2x** |
 
-*Benchmarks on Windows 11. Results vary by CPU and I/O.*
+**Cloud — Linux, 4 vCPU (Intel Xeon @ 2.10 GHz)** · Python 3.11 · Rust 1.94.1 — scaled to 1M tweets with parity validation:
+
+| Dataset Size | Python | Rust | Speedup |
+|--------------|--------|------|---------|
+| 100,000 | 3.30s (30.3k/s) | 0.133s (754k/s) | **24.9x** |
+| 500,000 | 16.10s (31.1k/s) | 0.627s (798k/s) | **25.7x** |
+| 1,000,000 | 33.08s (30.2k/s) | 1.163s (860k/s) | **28.5x** |
 
 ### Run Benchmark
 
 ```bash
-python benchmarks/preprocessing_benchmark.py --sizes 1000,10000,100000
+python benchmarks/preprocessing_benchmark.py --sizes 100000,500000,1000000
 ```
 
 ## Development
