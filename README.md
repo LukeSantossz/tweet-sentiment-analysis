@@ -20,7 +20,7 @@ Classifies the sentiment of social-media text using a Twitter-specialized RoBERT
 
 ## What It Is
 
-`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces a sentiment classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It exists because generic sentiment models underperform on tweets — abbreviations, slang, mentions, hashtags, and emojis violate assumptions baked into models trained on formal corpora. The project fine-tunes `cardiffnlp/twitter-roberta-base-sentiment` on the TweetEval dataset and measures the gain over its zero-shot baseline on the same 12,284-sample test split.
+`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces a sentiment classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It exists because generic sentiment models underperform on tweets — abbreviations, slang, mentions, hashtags, and emojis violate assumptions baked into models trained on formal corpora. The project fine-tunes `cardiffnlp/twitter-roberta-base-sentiment` on the TweetEval dataset and measures the gain over its zero-shot baseline on the shared TweetEval test split.
 
 ## Tech Stack
 
@@ -79,7 +79,7 @@ Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is t
 
 ## Results
 
-The fine-tuning run has not been executed yet (see Project Status), so the only measured model result today is the zero-shot baseline on the full test split (12,284 samples):
+The fine-tuning run has not been executed yet (see Project Status), so the only measured model result today is the zero-shot baseline, evaluated on a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`):
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
