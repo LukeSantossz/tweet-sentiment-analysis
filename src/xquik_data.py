@@ -177,7 +177,7 @@ def parse_xquik_search_page(payload: Mapping[str, Any]) -> XquikSearchPage:
 
     return XquikSearchPage(
         rows=rows,
-        has_next_page=bool(payload.get("has_next_page")),
+        has_next_page=_bool_value(payload.get("has_next_page")),
         next_cursor=_optional_string(payload.get("next_cursor")),
     )
 
@@ -233,6 +233,14 @@ def _optional_string(value: Any) -> str | None:
     return str(value)
 
 
+def _bool_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
+
+
 def _int_value(values: Mapping[str, Any], keys: Sequence[str]) -> int:
     for key in keys:
         value = values.get(key)
@@ -241,7 +249,7 @@ def _int_value(values: Mapping[str, Any], keys: Sequence[str]) -> int:
         try:
             return int(value)
         except (TypeError, ValueError):
-            return 0
+            continue
     return 0
 
 

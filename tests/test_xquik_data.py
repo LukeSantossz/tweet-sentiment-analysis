@@ -55,6 +55,11 @@ def test_build_xquik_search_url_rejects_empty_query():
         build_xquik_search_url("")
 
 
+def test_build_xquik_search_url_rejects_invalid_limit():
+    with pytest.raises(ValueError, match="limit must be positive"):
+        build_xquik_search_url("python", limit=0)
+
+
 def test_parse_xquik_search_page_normalizes_tweet_rows():
     page = parse_xquik_search_page(
         {
@@ -65,7 +70,8 @@ def test_parse_xquik_search_page_normalizes_tweet_rows():
                     "createdAt": "2026-06-20T12:00:00Z",
                     "author": {"username": "analyst", "name": "Data Analyst"},
                     "metrics": {
-                        "like_count": "12",
+                        "like_count": "bad",
+                        "likes": "12",
                         "retweet_count": 3,
                         "reply_count": None,
                         "quote_count": "bad",
@@ -89,6 +95,30 @@ def test_parse_xquik_search_page_normalizes_tweet_rows():
     assert row.reply_count == 0
     assert row.quote_count == 0
     assert row.url == "https://x.com/analyst/status/1937132925391401393"
+
+
+def test_parse_xquik_search_page_parses_string_false_next_page():
+    page = parse_xquik_search_page(
+        {
+            "tweets": [],
+            "has_next_page": "false",
+            "next_cursor": "unused",
+        }
+    )
+
+    assert page.has_next_page is False
+
+
+def test_parse_xquik_search_page_parses_string_true_next_page():
+    page = parse_xquik_search_page(
+        {
+            "tweets": [],
+            "has_next_page": "TRUE",
+            "next_cursor": "next",
+        }
+    )
+
+    assert page.has_next_page is True
 
 
 def test_fetch_xquik_search_page_sends_api_key_header():
@@ -118,6 +148,11 @@ def test_fetch_xquik_search_page_sends_api_key_header():
     assert page.rows[0].clean_text == "hello world"
 
 
+def test_fetch_xquik_search_page_rejects_empty_api_key():
+    with pytest.raises(ValueError, match="api_key must not be empty"):
+        fetch_xquik_search_page("", "python")
+
+
 def test_fetch_xquik_search_rows_paginates_until_final_page():
     opener = FakeOpener(
         [
@@ -144,6 +179,11 @@ def test_fetch_xquik_search_rows_paginates_until_final_page():
 
     assert [row.tweet_id for row in rows] == ["1", "2"]
     assert opener.requests[1][0].full_url.endswith("&cursor=next-page")
+
+
+def test_fetch_xquik_search_rows_rejects_invalid_max_pages():
+    with pytest.raises(ValueError, match="max_pages must be positive"):
+        fetch_xquik_search_rows("test-api-key", "python", max_pages=0)
 
 
 def test_write_xquik_rows_csv(tmp_path):
