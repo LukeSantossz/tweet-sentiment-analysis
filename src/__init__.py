@@ -14,12 +14,28 @@ from .preprocessing import (
     remove_urls,
     to_lowercase,
 )
+from .xquik_data import (
+    XquikSearchPage,
+    XquikTweetRow,
+    build_xquik_search_url,
+    fetch_xquik_search_page,
+    fetch_xquik_search_rows,
+    parse_xquik_search_page,
+    write_xquik_rows_csv,
+)
 
 __all__ = [
+    "XquikSearchPage",
+    "XquikTweetRow",
+    "build_xquik_search_url",
     "clean_tweet_text",
+    "fetch_xquik_search_page",
+    "fetch_xquik_search_rows",
     "handle_emojis",
     "normalize_hashtags",
+    "parse_xquik_search_page",
     "remove_mentions",
     "remove_urls",
     "to_lowercase",
+    "write_xquik_rows_csv",
 ]
