@@ -1,7 +1,5 @@
 """Tests for the training module."""
 
-from unittest.mock import MagicMock
-
 import numpy as np
 import pytest
 
@@ -25,9 +23,6 @@ def test_compute_metrics_perfect_predictions():
         ]
     )
     labels = np.array([0, 1, 2])
-
-    eval_pred = MagicMock()
-    eval_pred.__iter__ = lambda self: iter([predictions, labels])
 
     result = compute_metrics((predictions, labels))
 
