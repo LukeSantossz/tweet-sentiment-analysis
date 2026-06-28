@@ -20,16 +20,17 @@ if [ "${SKIP_CODEX_REVIEW:-}" = "1" ]; then
   exit 0
 fi
 
-# 2. Nothing to review when the branch is its own base.
-if [ "$branch" = "$base" ]; then
-  log "On base branch '$base'; nothing to review against itself. Skipping R2."
+# 2. Dry-run prints the command and exits, regardless of branch or Codex
+#    availability, so the documented CODEX_REVIEW_DRYRUN contract holds anywhere
+#    (including on the base branch, where step 3 would otherwise skip first).
+if [ "${CODEX_REVIEW_DRYRUN:-}" = "1" ]; then
+  printf '%s\n' "codex review --base $base -c model=\"$REVIEWER_MODEL\" -c model_reasoning_effort=\"$REVIEWER_EFFORT\""
   exit 0
 fi
 
-# 3. Dry-run prints the command and exits, regardless of Codex availability,
-#    so the documented CODEX_REVIEW_DRYRUN contract holds without Codex installed.
-if [ "${CODEX_REVIEW_DRYRUN:-}" = "1" ]; then
-  printf '%s\n' "codex review --base $base -c model=\"$REVIEWER_MODEL\" -c model_reasoning_effort=\"$REVIEWER_EFFORT\""
+# 3. Nothing to review when the branch is its own base.
+if [ "$branch" = "$base" ]; then
+  log "On base branch '$base'; nothing to review against itself. Skipping R2."
   exit 0
 fi
 

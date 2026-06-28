@@ -27,16 +27,16 @@ STUB
 chmod +x "$STUB_DIR/codex"
 trap 'rm -rf "$STUB_DIR"' EXIT
 
-# bypass_env_skips_gate
-out=$(SKIP_CODEX_REVIEW=1 CODEX_REVIEW_BRANCH=feature/x bash "$RUNNER" 2>&1); code=$?
+# bypass_env_skips_gate (stub on PATH: a regression would call the stub, not skip)
+out=$(SKIP_CODEX_REVIEW=1 CODEX_REVIEW_BRANCH=feature/x PATH="$STUB_DIR:$PATH" bash "$RUNNER" 2>&1); code=$?
 if [ "$code" -eq 0 ] && ! printf '%s' "$out" | grep -q "STUB_CODEX_CALLED"; then
   ok "bypass_env_skips_gate"
 else
   no "bypass_env_skips_gate" "code=$code out=$out"
 fi
 
-# skips_review_when_pushing_base_branch
-out=$(CODEX_REVIEW_BRANCH=main CODEX_REVIEW_BASE=main bash "$RUNNER" 2>&1); code=$?
+# skips_review_when_pushing_base_branch (stub on PATH: a regression would call it)
+out=$(CODEX_REVIEW_BRANCH=main CODEX_REVIEW_BASE=main PATH="$STUB_DIR:$PATH" bash "$RUNNER" 2>&1); code=$?
 if [ "$code" -eq 0 ] && ! printf '%s' "$out" | grep -q "STUB_CODEX_CALLED"; then
   ok "skips_review_when_pushing_base_branch"
 else
@@ -67,6 +67,15 @@ if [ "$code" -eq 0 ] && printf '%s\n' "$out" | grep -qxF "$expected"; then
   ok "honors_dryrun_even_when_codex_absent"
 else
   no "honors_dryrun_even_when_codex_absent" "code=$code out=$out"
+fi
+
+# honors_dryrun_on_base_branch (R2 finding P2): dry-run prints the command even on
+# the base branch, so the reproducibility contract does not depend on the branch.
+out=$(PATH="$STUB_DIR:$PATH" CODEX_REVIEW_BRANCH=main CODEX_REVIEW_BASE=main CODEX_REVIEW_DRYRUN=1 bash "$RUNNER" 2>&1); code=$?
+if [ "$code" -eq 0 ] && printf '%s\n' "$out" | grep -qxF "$expected"; then
+  ok "honors_dryrun_on_base_branch"
+else
+  no "honors_dryrun_on_base_branch" "code=$code out=$out"
 fi
 
 # advisory_on_codex_failure_does_not_block (design: R2 is advisory by default)
