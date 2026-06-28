@@ -67,16 +67,18 @@ Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is t
 
 ## Engineering Decisions
 
-| Decision | Alternative considered | Why this approach |
-| --- | --- | --- |
-| Base model `twitter-roberta-base-sentiment` | Generic `roberta-base` / training from scratch | Pre-trained on ~58M tweets — domain-aligned, skips costly domain adaptation. |
-| `max_length=128` tokens | `max_length=64` (99th pct ≈ 55 tokens) | A conservative margin that removes truncation artifacts at negligible cost. |
-| Macro F1 as primary metric | Plain accuracy | Dataset is imbalanced (neutral ~45% / positive ~30% / negative ~22%); macro F1 penalizes minority-class failures. |
-| URLs → `[URL]` token | Strip URLs entirely | Preserves the signal that a link was present without the noise of its content. |
-| Emojis → `emoji.demojize()` | Strip emojis | Keeps sentiment-bearing emoji as tokenizer-readable text (e.g. `:fire:`). |
-| Early stopping `patience=2` | Fixed epoch count | Prevents overfitting on a small train set without manual epoch tuning. |
-| Rust CLI for scale preprocessing | Python-only pipeline | Parity-validated speedup that grows with scale: **28.5x at 1M** tweets on 4 vCPUs (42x at 100K on a faster single machine), via Rayon parallelism and Polars I/O. |
-| CPU-only PyTorch in CI | Full CUDA build | Avoids a ~2GB CUDA download; GPU/network tests are excluded via a pytest marker. |
+Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full rationale — the decision, the alternative considered, and why this approach.
+
+| Decision | Rationale |
+| --- | --- |
+| Base model `twitter-roberta-base-sentiment` | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets |
+| `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md) — conservative margin over the 99th-percentile length |
+| Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md) — the class distribution is imbalanced |
+| URLs → `[URL]` token | [ADR 0004](docs/adr/0004-url-token-replacement.md) — keep the link signal, drop the noise |
+| Emojis → `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md) — keep sentiment-bearing emoji as text |
+| Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md) — avoid overfitting a small train set |
+| Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parity-validated 28.5x at 1M tweets |
+| CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
 
 ## Results
 
