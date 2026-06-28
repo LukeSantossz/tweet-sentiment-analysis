@@ -1,5 +1,5 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange?logo=rust&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange?logo=rust&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -27,7 +27,7 @@ Classifies the sentiment of social-media text using a Twitter-specialized RoBERT
 
 | Layer | Technology |
 | --- | --- |
-| Language | Python 3.10+ · Rust 1.80+ |
+| Language | Python 3.10+ · Rust 1.88+ |
 | ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment`) · PyTorch |
 | Data | TweetEval via HF `datasets` · scikit-learn · pandas |
 | Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` · `unicode-segmentation` |
@@ -97,7 +97,7 @@ Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — perfor
 
 - Python 3.10+ and pip
 - (Optional) CUDA 11.x+ for GPU-accelerated fine-tuning
-- (Optional) Rust 1.80+ via [rustup](https://rustup.rs/) — only to build the scale preprocessing CLI
+- (Optional) Rust 1.88+ (latest stable recommended) via [rustup](https://rustup.rs/) — only to build the scale preprocessing CLI
 
 ### Installation
 

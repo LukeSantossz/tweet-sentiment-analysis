@@ -14,7 +14,7 @@ This CLI tool preprocesses tweet text for downstream NLP tasks. It provides the 
 
 ### Prerequisites
 
-- Rust toolchain (1.80+): https://rustup.rs/
+- Rust toolchain (1.88+, latest stable recommended): https://rustup.rs/
 
 ### Build
 
