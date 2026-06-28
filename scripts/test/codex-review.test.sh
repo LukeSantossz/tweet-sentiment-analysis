@@ -15,7 +15,10 @@ ok() { PASS=$((PASS + 1)); printf 'ok   - %s\n' "$1"; }
 no() { FAIL=$((FAIL + 1)); printf 'FAIL - %s\n' "$1"; printf '       %s\n' "$2"; }
 
 # A stub `codex` so tests never call the real binary. STUB_EXIT controls its code.
-STUB_DIR="$(mktemp -d)"
+# Fail fast if the stub dir cannot be created, so the PATH tests below never fall
+# through to the real codex binary (safety contract; would consume real tooling).
+STUB_DIR="$(mktemp -d)" || { printf 'FAIL - could not create stub temp dir\n' >&2; exit 1; }
+[ -n "$STUB_DIR" ] && [ -d "$STUB_DIR" ] || { printf 'FAIL - stub temp dir invalid: %s\n' "$STUB_DIR" >&2; exit 1; }
 cat > "$STUB_DIR/codex" <<'STUB'
 #!/bin/sh
 echo "STUB_CODEX_CALLED $*"
