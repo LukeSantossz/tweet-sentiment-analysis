@@ -188,8 +188,8 @@ mod tests {
     #[test]
     fn test_remove_urls() {
         assert_eq!(
-            remove_urls("Aqui está o link https://site.com para ver"),
-            "Aqui está o link [URL] para ver"
+            remove_urls("Here is the link https://site.com to see"),
+            "Here is the link [URL] to see"
         );
         assert_eq!(remove_urls("https://site.com"), "[URL]");
     }
@@ -197,43 +197,45 @@ mod tests {
     #[test]
     fn test_remove_mentions() {
         assert_eq!(
-            remove_mentions("E aí @joao, beleza?"),
-            "E aí @user, beleza?"
+            remove_mentions("Hey @joao, all good?"),
+            "Hey @user, all good?"
         );
         assert_eq!(
-            remove_mentions("Feliz ano novo @ana e @carlos!"),
-            "Feliz ano novo @user e @user!"
+            remove_mentions("Happy new year @ana and @carlos!"),
+            "Happy new year @user and @user!"
         );
     }
 
     #[test]
     fn test_normalize_hashtags() {
         assert_eq!(
-            normalize_hashtags("Adoro programar em #python"),
-            "Adoro programar em python"
+            normalize_hashtags("I love programming in #python"),
+            "I love programming in python"
         );
         assert_eq!(
-            normalize_hashtags("Adoro programar em #python3"),
-            "Adoro programar em python3"
+            normalize_hashtags("I love programming in #python3"),
+            "I love programming in python3"
         );
     }
 
     #[test]
     fn test_to_lowercase() {
-        assert_eq!(to_lowercase("Olá Mundo"), "olá mundo");
-        assert_eq!(to_lowercase("OLÁ MUNDO"), "olá mundo");
+        assert_eq!(to_lowercase("Hello World"), "hello world");
+        // Unicode-aware lowercasing: non-ASCII letters must lowercase too.
+        assert_eq!(to_lowercase("CAFÉ"), "café");
     }
 
     #[test]
     fn test_handle_emojis() {
-        let result = handle_emojis("Estou feliz 😊");
+        let result = handle_emojis("I am happy 😊");
         assert!(result.contains(":smiling_face_with_smiling_eyes:"));
     }
 
     #[test]
     fn test_handle_emojis_multi_codepoint() {
-        // Test flag emoji (2 regional indicator symbols)
-        let result_flag = handle_emojis("Viva o Brasil 🇧🇷!");
+        // Test flag emoji (2 regional indicator symbols). The input has no literal
+        // "Brazil", so the assertion below only passes if the emoji was converted.
+        let result_flag = handle_emojis("Long live 🇧🇷!");
         assert!(
             result_flag.contains("Brazil") && result_flag.contains(":"),
             "Flag should be converted to text: {}",
@@ -267,8 +269,9 @@ mod tests {
 
     #[test]
     fn test_clean_tweet_text() {
-        let result =
-            clean_tweet_text("E aí @joao, beleza? Adoro programar em #python 😊 https://site.com");
+        let result = clean_tweet_text(
+            "Hey @joao, all good? I love programming in #python 😊 https://site.com",
+        );
         assert!(result.contains("@user"));
         assert!(result.contains("python"));
         assert!(result.contains("[url]"));
