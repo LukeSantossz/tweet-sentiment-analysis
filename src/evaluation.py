@@ -40,3 +40,15 @@ def evaluation_report(predictions, labels) -> dict:
         "per_class_f1": per_class_f1(labels, preds),
         "confusion_matrix": confusion_matrix(labels, preds, labels=class_labels),
     }
+
+
+def divergent_classes(
+    baseline_per_class: dict[str, float],
+    finetuned_per_class: dict[str, float],
+) -> list[str]:
+    """LABEL_NAMES ordered by absolute per-class F1 shift between models, largest first."""
+    return sorted(
+        LABEL_NAMES,
+        key=lambda name: abs(finetuned_per_class[name] - baseline_per_class[name]),
+        reverse=True,
+    )

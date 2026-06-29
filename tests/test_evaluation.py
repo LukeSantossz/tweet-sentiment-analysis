@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sklearn.metrics import f1_score
 
-from src.evaluation import evaluation_report, macro_f1_pct_gain, per_class_f1
+from src.evaluation import divergent_classes, evaluation_report, macro_f1_pct_gain, per_class_f1
 
 
 def test_macro_f1_pct_gain_returns_zero_when_equal():
@@ -54,3 +54,15 @@ def test_evaluation_report_matches_sklearn_on_known_input():
     )
     assert report["confusion_matrix"].shape == (3, 3)
     assert int(report["confusion_matrix"].sum()) == 4
+
+
+def test_divergent_classes_ranks_largest_shift_first():
+    baseline = {"negative": 0.70, "neutral": 0.70, "positive": 0.73}
+    finetuned = {"negative": 0.75, "neutral": 0.85, "positive": 0.74}
+    # |shift|: negative 0.05, neutral 0.15, positive 0.01
+    assert divergent_classes(baseline, finetuned) == ["neutral", "negative", "positive"]
+
+
+def test_divergent_classes_returns_all_labels():
+    flat = {"negative": 0.5, "neutral": 0.5, "positive": 0.5}
+    assert sorted(divergent_classes(flat, flat)) == ["negative", "neutral", "positive"]
