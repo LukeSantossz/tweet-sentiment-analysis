@@ -84,12 +84,12 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 
 ## Results
 
-The fine-tuning run has not been executed yet (see Project Status), so the only measured model result today is the zero-shot baseline, evaluated on a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`):
+The fine-tuning run has executed (validation accuracy 0.817 / macro F1 0.808, see Project Status), but the only result measured on the **test** split so far is the zero-shot baseline — a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`). The fine-tuned model's test-set numbers, the fair comparison against this baseline, are produced in #27:
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
 | **Zero-shot baseline** | **70%** | **0.71** |
-| Fine-tuned (pending) | — | — |
+| Fine-tuned (test set, #27) | — | — |
 
 Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — performance is even across classes, which makes macro F1 a fair single-number target for the fine-tuned model to beat.
 
