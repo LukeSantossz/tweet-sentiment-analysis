@@ -240,13 +240,16 @@ def train(
     print(f"Loading dataset: {DATASET_NAME}/{DATASET_CONFIG}")
     dataset = load_tweet_eval_dataset()
 
-    print(f"Tokenizing dataset with max_length={MAX_LENGTH}")
-    tokenized_dataset = tokenize_dataset(dataset, tokenizer)
+    raw_train = dataset["train"]
+    raw_eval = dataset["validation"]
+    raw_train = raw_train.select(range(subset_size(len(raw_train), max_train_samples)))
+    raw_eval = raw_eval.select(range(subset_size(len(raw_eval), max_eval_samples)))
 
-    train_dataset = tokenized_dataset["train"]
-    eval_dataset = tokenized_dataset["validation"]
-    train_dataset = train_dataset.select(range(subset_size(len(train_dataset), max_train_samples)))
-    eval_dataset = eval_dataset.select(range(subset_size(len(eval_dataset), max_eval_samples)))
+    print(f"Tokenizing dataset with max_length={MAX_LENGTH}")
+    splits = DatasetDict({"train": raw_train, "validation": raw_eval})
+    tokenized = tokenize_dataset(splits, tokenizer)
+    train_dataset = tokenized["train"]
+    eval_dataset = tokenized["validation"]
 
     if fp16 is None:
         fp16 = torch.cuda.is_available()
