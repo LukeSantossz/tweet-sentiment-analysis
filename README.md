@@ -29,7 +29,7 @@ Classifies the emotion of social-media text using a Twitter-specialized RoBERTa 
 | --- | --- |
 | Language | Python 3.10+ · Rust 1.88+ |
 | ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base`) · PyTorch |
-| Data | TweetEval via HF `datasets` · scikit-learn · pandas |
+| Data | dair-ai/emotion via HF `datasets` · scikit-learn · pandas |
 | Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` · `unicode-segmentation` |
 | Tooling / CI | Ruff · pytest · `cargo test` · GitHub Actions |
 
