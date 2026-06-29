@@ -84,14 +84,14 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 
 ## Results
 
-The fine-tuning run has executed (see Project Status for the validation metrics and how to reproduce them). The only result measured on the **test** split so far is the zero-shot baseline — a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`). The fine-tuned model's test-set numbers, the fair comparison against this baseline, are produced in #27:
+Both models are evaluated on the **full** TweetEval sentiment test split (12,284 rows), each fed the shared `preprocess_for_model` (ADR 0009) for a fair comparison. Reproduce with `notebooks/05_evaluation.ipynb`.
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
-| **Zero-shot baseline** | **70%** | **0.71** |
-| Fine-tuned (pending) | — | — |
+| **Zero-shot baseline** | **72.4%** | **0.724** |
+| Fine-tuned | 70.4% | 0.704 |
 
-Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — performance is even across classes, which makes macro F1 a fair single-number target for the fine-tuned model to beat.
+Fine-tuning did **not** beat the baseline — macro F1 fell **2.72%** (0.704 vs 0.724). The base model `cardiffnlp/twitter-roberta-base-sentiment` is already fine-tuned on TweetEval sentiment, so re-fine-tuning on the same data overfit: validation macro F1 rose to 0.808 while held-out test fell below the baseline. Per-class analysis (negative recall dropped the most, 78%→69%) and error hypotheses are in `notebooks/05_evaluation.ipynb`. Revisiting the recipe and premise is tracked in #59.
 
 ## Getting Started
 
@@ -191,10 +191,9 @@ tweet-sentiment-analysis/
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 - [x] Fine-tuning run — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808
+- [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
 
 ### Pending
-
-- [ ] Comparative evaluation — baseline vs fine-tuned, per-class analysis
 - [ ] Batch inference for 1M+ tweets
 - [ ] Full Python-vs-Rust benchmark documented in this README
 - [ ] REST API (FastAPI) and demo UI (Gradio)
@@ -202,7 +201,7 @@ tweet-sentiment-analysis/
 
 ## Known Issues & Limitations
 
-- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Project Status for its validation metrics. The Results table below still shows only the zero-shot baseline; the fair fine-tuned-vs-baseline comparison on the test set is tracked in #27.
+- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Project Status for its validation metrics. The full-set comparison is published in Results and reproducible via `notebooks/05_evaluation.ipynb`; the fine-tuned model underperforms the baseline (−2.72% macro F1) because the base is already TweetEval-tuned — revisiting the approach is tracked in #59.
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
