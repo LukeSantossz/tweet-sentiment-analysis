@@ -1,6 +1,7 @@
 """Tests for the training module."""
 
 import sys
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -11,6 +12,7 @@ from src.training import (
     MAX_LENGTH,
     MODEL_NAME,
     SEED,
+    WeightedLossTrainer,
     compute_class_weights,
     compute_metrics,
     create_training_args,
@@ -208,3 +210,47 @@ def test_compute_class_weights_matches_sklearn_balanced_on_known_counts():
     expected = compute_class_weight(class_weight="balanced", classes=np.arange(len(LABEL_NAMES)), y=np.array(labels))
     weights = compute_class_weights(labels)
     assert np.allclose(weights.numpy(), expected)
+
+
+def _stub_model(logits):
+    """Minimal callable standing in for a HF model: ignores inputs, returns fixed logits."""
+
+    def _call(**inputs):
+        return SimpleNamespace(logits=logits)
+
+    return _call
+
+
+def test_weighted_loss_none_equals_standard_cross_entropy():
+    logits = torch.tensor([[2.0, 0.1, 0.1, 0.0, 0.0, 0.0], [0.1, 0.1, 0.1, 2.0, 0.0, 0.0]])
+    labels = torch.tensor([0, 3])
+    trainer = WeightedLossTrainer.__new__(WeightedLossTrainer)  # bypass heavy Trainer.__init__
+    trainer.class_weights = None
+
+    loss = trainer.compute_loss(
+        _stub_model(logits), {"input_ids": torch.zeros((2, 1), dtype=torch.long), "labels": labels}
+    )
+
+    assert torch.allclose(loss, torch.nn.functional.cross_entropy(logits, labels))
+
+
+def test_weighted_loss_applies_class_weights():
+    logits = torch.tensor([[2.0, 0.1, 0.1, 0.0, 0.0, 0.0], [0.1, 0.1, 0.1, 2.0, 0.0, 0.0]])
+    labels = torch.tensor([0, 3])
+    weights = torch.tensor([5.0, 1.0, 1.0, 2.0, 1.0, 3.0])
+    trainer = WeightedLossTrainer.__new__(WeightedLossTrainer)
+    trainer.class_weights = weights
+
+    loss = trainer.compute_loss(
+        _stub_model(logits), {"input_ids": torch.zeros((2, 1), dtype=torch.long), "labels": labels}
+    )
+
+    expected = torch.nn.functional.cross_entropy(logits, labels, weight=weights)
+    assert torch.allclose(loss, expected)
+
+
+def test_parse_args_class_weights_default_on_and_toggle(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["prog"])
+    assert parse_args().class_weights is True
+    monkeypatch.setattr(sys, "argv", ["prog", "--no-class-weights"])
+    assert parse_args().class_weights is False

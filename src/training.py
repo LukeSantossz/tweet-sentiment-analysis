@@ -145,6 +145,25 @@ def compute_class_weights(labels) -> torch.Tensor:
     return torch.tensor(weights, dtype=torch.float)
 
 
+class WeightedLossTrainer(Trainer):
+    """Trainer that applies class weights in the cross-entropy loss.
+
+    `class_weights=None` reproduces the standard (unweighted) cross-entropy, which makes the
+    with/without class-weight ablation a single code path (ADR 0012).
+    """
+
+    def __init__(self, *args, class_weights: torch.Tensor | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        weight = None if self.class_weights is None else self.class_weights.to(outputs.logits.device)
+        loss = torch.nn.functional.cross_entropy(outputs.logits, labels, weight=weight)
+        return (loss, outputs) if return_outputs else loss
+
+
 def create_training_args(
     output_dir: str = DEFAULT_OUTPUT_DIR,
     num_train_epochs: int = 3,
@@ -204,27 +223,17 @@ def create_trainer(
     training_args: TrainingArguments,
     train_dataset: Dataset,
     eval_dataset: Dataset,
+    class_weights: torch.Tensor | None = None,
 ) -> Trainer:
-    """
-    Create a Trainer instance with the given configuration.
-
-    Args:
-        model: Pre-trained model
-        tokenizer: Tokenizer for the model
-        training_args: Training configuration
-        train_dataset: Tokenized training dataset
-        eval_dataset: Tokenized validation dataset
-
-    Returns:
-        Configured Trainer instance
-    """
-    return Trainer(
+    """Create a (weighted-loss) Trainer. class_weights=None gives the standard loss."""
+    return WeightedLossTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        class_weights=class_weights,
     )
 
 
@@ -238,6 +247,7 @@ def train(
     max_steps: int = -1,
     max_train_samples: int | None = None,
     max_eval_samples: int | None = None,
+    use_class_weights: bool = True,
 ) -> dict[str, float]:
     """
     Execute the full fine-tuning pipeline.
@@ -252,6 +262,7 @@ def train(
         max_steps: Cap total optimizer steps (-1 = use epochs)
         max_train_samples: Use at most N training examples (smoke tests)
         max_eval_samples: Use at most N validation examples (smoke tests)
+        use_class_weights: Compute and apply balanced class weights in the loss
 
     Returns:
         Dictionary with final evaluation metrics
@@ -287,12 +298,17 @@ def train(
         max_steps=max_steps,
     )
 
+    class_weights = compute_class_weights(raw_train["label"]) if use_class_weights else None
+    if class_weights is not None:
+        print(f"Using balanced class weights: {class_weights.tolist()}")
+
     trainer = create_trainer(
         model=model,
         tokenizer=tokenizer,
         training_args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        class_weights=class_weights,
     )
 
     print("Starting training...")
@@ -375,6 +391,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Use at most N validation examples (smoke tests)",
     )
+    parser.add_argument(
+        "--class-weights",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        dest="class_weights",
+        help="Apply balanced class weights in the loss (default: on; --no-class-weights for the ablation)",
+    )
     return parser.parse_args()
 
 
@@ -391,4 +414,5 @@ if __name__ == "__main__":
         max_steps=args.max_steps,
         max_train_samples=args.max_train_samples,
         max_eval_samples=args.max_eval_samples,
+        use_class_weights=args.class_weights,
     )
