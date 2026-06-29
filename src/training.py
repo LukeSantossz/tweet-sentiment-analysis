@@ -25,6 +25,7 @@ Usage:
 import argparse
 
 import numpy as np
+import torch
 from datasets import Dataset, DatasetDict, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
 from transformers import (
@@ -47,6 +48,11 @@ MAX_LENGTH = 128
 DEFAULT_OUTPUT_DIR = "./outputs/finetuned-model"
 
 LABEL_NAMES = ["negative", "neutral", "positive"]
+
+
+def subset_size(available: int, requested: int | None) -> int:
+    """Return how many rows to keep: all of them unless a smaller cap is requested."""
+    return available if requested is None else min(requested, available)
 
 
 def load_tokenizer_and_model() -> tuple[PreTrainedTokenizerBase, PreTrainedModel]:
@@ -126,6 +132,8 @@ def create_training_args(
     per_device_eval_batch_size: int = 32,
     warmup_steps: int = 500,
     weight_decay: float = 0.01,
+    fp16: bool = False,
+    max_steps: int = -1,
 ) -> TrainingArguments:
     """
     Create TrainingArguments with recommended hyperparameters.
@@ -138,6 +146,8 @@ def create_training_args(
         per_device_eval_batch_size: Evaluation batch size per device
         warmup_steps: Number of warmup steps for learning rate scheduler
         weight_decay: Weight decay for regularization
+        fp16: Enable fp16 mixed precision (GPU only)
+        max_steps: Cap total optimizer steps (-1 = use epochs)
 
     Returns:
         Configured TrainingArguments
@@ -145,6 +155,7 @@ def create_training_args(
     return TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_train_epochs,
+        max_steps=max_steps,
         learning_rate=learning_rate,
         per_device_train_batch_size=per_device_train_batch_size,
         per_device_eval_batch_size=per_device_eval_batch_size,
@@ -158,7 +169,7 @@ def create_training_args(
         save_total_limit=2,
         logging_strategy="epoch",
         report_to="none",
-        fp16=False,
+        fp16=fp16,
         push_to_hub=False,
     )
 
@@ -199,6 +210,10 @@ def train(
     learning_rate: float = 2e-5,
     per_device_train_batch_size: int = 16,
     per_device_eval_batch_size: int = 32,
+    fp16: bool | None = None,
+    max_steps: int = -1,
+    max_train_samples: int | None = None,
+    max_eval_samples: int | None = None,
 ) -> dict[str, float]:
     """
     Execute the full fine-tuning pipeline.
@@ -209,6 +224,10 @@ def train(
         learning_rate: Learning rate for optimizer
         per_device_train_batch_size: Training batch size
         per_device_eval_batch_size: Evaluation batch size
+        fp16: fp16 mixed precision; None auto-enables it when CUDA is available
+        max_steps: Cap total optimizer steps (-1 = use epochs)
+        max_train_samples: Use at most N training examples (smoke tests)
+        max_eval_samples: Use at most N validation examples (smoke tests)
 
     Returns:
         Dictionary with final evaluation metrics
@@ -222,20 +241,30 @@ def train(
     print(f"Tokenizing dataset with max_length={MAX_LENGTH}")
     tokenized_dataset = tokenize_dataset(dataset, tokenizer)
 
+    train_dataset = tokenized_dataset["train"]
+    eval_dataset = tokenized_dataset["validation"]
+    train_dataset = train_dataset.select(range(subset_size(len(train_dataset), max_train_samples)))
+    eval_dataset = eval_dataset.select(range(subset_size(len(eval_dataset), max_eval_samples)))
+
+    if fp16 is None:
+        fp16 = torch.cuda.is_available()
+
     training_args = create_training_args(
         output_dir=output_dir,
         num_train_epochs=num_train_epochs,
         learning_rate=learning_rate,
         per_device_train_batch_size=per_device_train_batch_size,
         per_device_eval_batch_size=per_device_eval_batch_size,
+        fp16=fp16,
+        max_steps=max_steps,
     )
 
     trainer = create_trainer(
         model=model,
         tokenizer=tokenizer,
         training_args=training_args,
-        train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset["validation"],
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
     )
 
     print("Starting training...")
@@ -292,6 +321,30 @@ def parse_args() -> argparse.Namespace:
         default=32,
         help="Evaluation batch size per device",
     )
+    parser.add_argument(
+        "--fp16",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable fp16 mixed precision (default: auto -- on when CUDA is available)",
+    )
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        default=-1,
+        help="Cap total optimizer steps (-1 = use epochs); useful for smoke tests",
+    )
+    parser.add_argument(
+        "--max_train_samples",
+        type=int,
+        default=None,
+        help="Use at most N training examples (smoke tests)",
+    )
+    parser.add_argument(
+        "--max_eval_samples",
+        type=int,
+        default=None,
+        help="Use at most N validation examples (smoke tests)",
+    )
     return parser.parse_args()
 
 
@@ -304,4 +357,8 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         per_device_train_batch_size=args.train_batch_size,
         per_device_eval_batch_size=args.eval_batch_size,
+        fp16=args.fp16,
+        max_steps=args.max_steps,
+        max_train_samples=args.max_train_samples,
+        max_eval_samples=args.max_eval_samples,
     )
