@@ -191,10 +191,9 @@ tweet-sentiment-analysis/
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 - [x] Fine-tuning run — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808
+- [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
 
 ### Pending
-
-- [ ] Comparative evaluation — baseline vs fine-tuned, per-class analysis
 - [ ] Batch inference for 1M+ tweets
 - [ ] Full Python-vs-Rust benchmark documented in this README
 - [ ] REST API (FastAPI) and demo UI (Gradio)
