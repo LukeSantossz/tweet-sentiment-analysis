@@ -138,11 +138,28 @@ def compute_class_weights(labels) -> torch.Tensor:
 
     Uses scikit-learn's "balanced" heuristic: weight[c] = n_samples / (n_classes * count[c]).
     Assumes every label in 0..len(LABEL_NAMES)-1 is present in `labels` (true for the full
-    train split; smoke subsets that drop a rare class should run with --no-class-weights).
+    train split). For possibly-incomplete subsets, call `resolve_class_weights`, which guards
+    the absent-class case.
     """
     classes = np.arange(len(LABEL_NAMES))
     weights = compute_class_weight(class_weight="balanced", classes=classes, y=np.asarray(labels))
     return torch.tensor(weights, dtype=torch.float)
+
+
+def resolve_class_weights(labels, use_class_weights: bool) -> torch.Tensor | None:
+    """Class weights to train with, or None for the standard loss.
+
+    Returns None when weighting is disabled, or when the (possibly subsetted) training
+    labels do not cover all classes: balanced weights are undefined for an absent class,
+    so we warn and fall back to the unweighted loss instead of crashing -- e.g. a small
+    ``--max_train_samples`` smoke run that drops the rare ``surprise`` class.
+    """
+    if not use_class_weights:
+        return None
+    if len({int(label) for label in labels}) < len(LABEL_NAMES):
+        print("Warning: training subset does not cover all classes; using the unweighted loss.")
+        return None
+    return compute_class_weights(labels)
 
 
 class WeightedLossTrainer(Trainer):
@@ -298,7 +315,7 @@ def train(
         max_steps=max_steps,
     )
 
-    class_weights = compute_class_weights(raw_train["label"]) if use_class_weights else None
+    class_weights = resolve_class_weights(raw_train["label"], use_class_weights)
     if class_weights is not None:
         print(f"Using balanced class weights: {class_weights.tolist()}")
 

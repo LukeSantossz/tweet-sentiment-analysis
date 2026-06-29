@@ -18,6 +18,7 @@ from src.training import (
     create_training_args,
     load_tokenizer_and_model,
     parse_args,
+    resolve_class_weights,
 )
 
 
@@ -254,3 +255,20 @@ def test_parse_args_class_weights_default_on_and_toggle(monkeypatch):
     assert parse_args().class_weights is True
     monkeypatch.setattr(sys, "argv", ["prog", "--no-class-weights"])
     assert parse_args().class_weights is False
+
+
+def test_resolve_class_weights_disabled_returns_none():
+    assert resolve_class_weights([0, 1, 2, 3, 4, 5], False) is None
+
+
+def test_resolve_class_weights_all_classes_present_returns_weights():
+    weights = resolve_class_weights([0, 1, 2, 3, 4, 5, 0, 1], True)
+    assert weights is not None
+    assert tuple(weights.shape) == (len(LABEL_NAMES),)
+
+
+def test_resolve_class_weights_missing_class_falls_back_to_none(capsys):
+    # 'surprise' (5) absent from the subset -> no crash, warn, fall back to the unweighted loss
+    result = resolve_class_weights([0, 1, 2, 3, 4, 0, 1], True)
+    assert result is None
+    assert "classes" in capsys.readouterr().out.lower()
