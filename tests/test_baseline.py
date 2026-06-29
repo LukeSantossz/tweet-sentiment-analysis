@@ -33,6 +33,16 @@ def test_baseline_feeds_evaluation_report():
     assert 0.0 <= report["f1_macro"] <= 1.0
 
 
+def test_fit_baseline_requires_all_classes():
+    # decision_function columns follow clf.classes_; a missing class would misalign the
+    # fixed 0..5 schema downstream, so fit_baseline must fail fast.
+    rng = np.random.default_rng(2)
+    features = rng.normal(size=(20, 8))
+    labels = np.array([0, 1, 2, 3, 4] * 4)  # 'surprise' (5) absent
+    with pytest.raises(ValueError, match="missing"):
+        fit_baseline(features, labels)
+
+
 @pytest.mark.slow
 def test_extract_features_shape_from_backbone():
     from transformers import AutoModel, AutoTokenizer

@@ -12,7 +12,7 @@ import torch
 from sklearn.linear_model import LogisticRegression
 
 from .preprocessing import preprocess_for_model
-from .training import MAX_LENGTH
+from .training import LABEL_NAMES, MAX_LENGTH
 
 
 def extract_features(texts, tokenizer, model, batch_size: int = 32) -> np.ndarray:
@@ -33,12 +33,25 @@ def extract_features(texts, tokenizer, model, batch_size: int = 32) -> np.ndarra
 
 
 def fit_baseline(train_features, train_labels, max_iter: int = 1000, seed: int = 42) -> LogisticRegression:
-    """Fit a multinomial LogisticRegression on extracted features."""
+    """Fit a multinomial LogisticRegression on extracted features.
+
+    Requires every label in 0..len(LABEL_NAMES)-1 to be present in `train_labels`. The baseline
+    feeds `predict_baseline` (decision-function scores ordered by `clf.classes_`) into argmax and
+    confusion-matrix code that assumes the fixed 0..5 schema, so a missing class would silently
+    misalign the score columns. Fail fast instead.
+    """
+    missing = sorted(set(range(len(LABEL_NAMES))) - {int(label) for label in train_labels})
+    if missing:
+        raise ValueError(f"train_labels must cover all {len(LABEL_NAMES)} emotion classes; missing {missing}")
     clf = LogisticRegression(max_iter=max_iter, random_state=seed)
     clf.fit(train_features, train_labels)
     return clf
 
 
 def predict_baseline(clf, features) -> np.ndarray:
-    """Decision-function scores (one row per input, one column per class); argmax = prediction."""
+    """Decision-function scores (one row per input, one column per class); argmax = prediction.
+
+    Columns follow `clf.classes_`; `fit_baseline` guarantees all classes are present, so the
+    columns align with the fixed 0..len(LABEL_NAMES)-1 label order.
+    """
     return clf.decision_function(features)
