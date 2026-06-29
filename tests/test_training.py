@@ -1,5 +1,7 @@
 """Tests for the training module."""
 
+import sys
+
 import numpy as np
 import pytest
 
@@ -10,6 +12,7 @@ from src.training import (
     compute_metrics,
     create_training_args,
     load_tokenizer_and_model,
+    parse_args,
 )
 
 
@@ -158,3 +161,16 @@ def test_subset_size_clamps_to_available():
     assert subset_size(3, 10) == 3
     assert subset_size(10, 3) == 3
     assert subset_size(5, None) == 5
+
+
+def test_parse_args_accepts_fp16_and_smoke_flags(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "--fp16", "--max_steps", "5", "--max_train_samples", "64", "--max_eval_samples", "32"],
+    )
+    args = parse_args()
+    assert args.fp16 is True
+    assert args.max_steps == 5
+    assert args.max_train_samples == 64
+    assert args.max_eval_samples == 32
