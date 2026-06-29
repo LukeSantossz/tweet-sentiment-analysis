@@ -12,10 +12,12 @@ Accepted.
 
 ## Considered Options
 
-- **fp16 auto-on-CUDA (chosen)**: roughly halves activation/optimizer memory and speeds up
-  training ~2x on the RTX 3070, with negligible accuracy impact for fine-tuning; inert on CPU.
-- **Keep fp32**: simplest, but risks OOM at batch 16 on 8 GB (worse alongside other GPU apps)
-  and is ~2x slower. Rejected for consumer-GPU runs.
+- **fp16 auto-on-CUDA (chosen)**: mixed precision is expected to lower memory use and speed up
+  training on Ampere GPUs like the RTX 3070, with negligible accuracy impact for fine-tuning;
+  inert on CPU. (Exact speedup/memory not benchmarked for this project; the smoke run confirmed
+  the fine-tune trains within the 8 GB card.)
+- **Keep fp32**: simplest, but more memory-hungry and slower than fp16, risking OOM at batch 16
+  on 8 GB (worse alongside other GPU apps). Rejected for consumer-GPU runs.
 - **bf16**: better numerical range, but Ampere (RTX 3070) bf16 is slower/less supported than
   fp16; fp16 is the pragmatic choice here. Rejected for now.
 
