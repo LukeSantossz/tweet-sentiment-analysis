@@ -11,6 +11,7 @@ from src.training import (
     MAX_LENGTH,
     MODEL_NAME,
     SEED,
+    compute_class_weights,
     compute_metrics,
     create_training_args,
     load_tokenizer_and_model,
@@ -186,3 +187,24 @@ def test_parse_args_accepts_fp16_and_smoke_flags(monkeypatch):
     assert args.max_steps == 5
     assert args.max_train_samples == 64
     assert args.max_eval_samples == 32
+
+
+def test_compute_class_weights_returns_one_weight_per_label():
+    weights = compute_class_weights([0, 1, 2, 3, 4, 5, 0, 1])
+    assert tuple(weights.shape) == (len(LABEL_NAMES),)
+
+
+def test_compute_class_weights_weights_rarer_class_higher():
+    # class 0 appears 5x, class 5 appears once -> class 5 must get a larger weight
+    labels = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5]
+    weights = compute_class_weights(labels)
+    assert weights[5] > weights[0]
+
+
+def test_compute_class_weights_matches_sklearn_balanced_on_known_counts():
+    from sklearn.utils.class_weight import compute_class_weight
+
+    labels = [0, 0, 0, 1, 1, 2, 2, 2, 2, 3, 4, 5]
+    expected = compute_class_weight(class_weight="balanced", classes=np.arange(len(LABEL_NAMES)), y=np.array(labels))
+    weights = compute_class_weights(labels)
+    assert np.allclose(weights.numpy(), expected)

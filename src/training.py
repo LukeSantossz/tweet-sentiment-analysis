@@ -28,6 +28,7 @@ import numpy as np
 import torch
 from datasets import Dataset, DatasetDict, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.utils.class_weight import compute_class_weight
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -130,6 +131,18 @@ def compute_metrics(eval_pred: EvalPrediction) -> dict[str, float]:
         "accuracy": accuracy,
         "f1_macro": f1_macro,
     }
+
+
+def compute_class_weights(labels) -> torch.Tensor:
+    """Balanced (inverse-frequency) class weights, ordered by label index 0..len-1.
+
+    Uses scikit-learn's "balanced" heuristic: weight[c] = n_samples / (n_classes * count[c]).
+    Assumes every label in 0..len(LABEL_NAMES)-1 is present in `labels` (true for the full
+    train split; smoke subsets that drop a rare class should run with --no-class-weights).
+    """
+    classes = np.arange(len(LABEL_NAMES))
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=np.asarray(labels))
+    return torch.tensor(weights, dtype=torch.float)
 
 
 def create_training_args(
