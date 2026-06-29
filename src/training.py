@@ -42,7 +42,7 @@ from transformers import (
 from .preprocessing import preprocess_for_model
 
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
-DATASET_NAME = "tweet_eval"
+DATASET_NAME = "cardiffnlp/tweet_eval"
 DATASET_CONFIG = "sentiment"
 MAX_LENGTH = 128
 DEFAULT_OUTPUT_DIR = "./outputs/finetuned-model"
