@@ -1,8 +1,8 @@
 """
-Fine-tuning script for Tweet Sentiment Classification.
+Fine-tuning script for emotion classification on dair-ai/emotion.
 
-This module implements fine-tuning of the CardiffNLP Twitter-RoBERTa model
-on the TweetEval sentiment dataset using the Hugging Face Trainer API.
+This module implements fine-tuning of the cardiffnlp/twitter-roberta-base model
+on the dair-ai/emotion dataset using the Hugging Face Trainer API.
 
 Hyperparameters:
     - learning_rate: 2e-5
@@ -37,17 +37,19 @@ from transformers import (
     PreTrainedTokenizerBase,
     Trainer,
     TrainingArguments,
+    set_seed,
 )
 
 from .preprocessing import preprocess_for_model
 
-MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
-DATASET_NAME = "cardiffnlp/tweet_eval"
-DATASET_CONFIG = "sentiment"
+MODEL_NAME = "cardiffnlp/twitter-roberta-base"
+DATASET_NAME = "dair-ai/emotion"
+DATASET_CONFIG = "split"
 MAX_LENGTH = 128
 DEFAULT_OUTPUT_DIR = "./outputs/finetuned-model"
+SEED = 42
 
-LABEL_NAMES = ["negative", "neutral", "positive"]
+LABEL_NAMES = ["sadness", "joy", "love", "anger", "fear", "surprise"]
 
 
 def subset_size(available: int, requested: int | None) -> int:
@@ -58,19 +60,23 @@ def subset_size(available: int, requested: int | None) -> int:
 
 
 def load_tokenizer_and_model() -> tuple[PreTrainedTokenizerBase, PreTrainedModel]:
-    """Load the pre-trained tokenizer and model."""
+    """Load the tokenizer and a sequence-classification model with a head sized to LABEL_NAMES.
+
+    The backbone is a task-agnostic MLM (no pretrained classification head), so a randomly
+    initialized head is added — the "newly initialized weights" warning is expected (ADR 0011).
+    """
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSequenceClassification.from_pretrained(
         MODEL_NAME,
-        num_labels=3,
+        num_labels=len(LABEL_NAMES),
         id2label={i: label for i, label in enumerate(LABEL_NAMES)},
         label2id={label: i for i, label in enumerate(LABEL_NAMES)},
     )
     return tokenizer, model
 
 
-def load_tweet_eval_dataset() -> DatasetDict:
-    """Load the TweetEval sentiment dataset."""
+def load_emotion_dataset() -> DatasetDict:
+    """Load the dair-ai/emotion dataset (config 'split': 16k/2k/2k, single-label, 6 classes)."""
     return load_dataset(DATASET_NAME, DATASET_CONFIG)
 
 
@@ -136,6 +142,7 @@ def create_training_args(
     weight_decay: float = 0.01,
     fp16: bool = False,
     max_steps: int = -1,
+    seed: int = SEED,
 ) -> TrainingArguments:
     """
     Create TrainingArguments with recommended hyperparameters.
@@ -150,12 +157,14 @@ def create_training_args(
         weight_decay: Weight decay for regularization
         fp16: Enable fp16 mixed precision (GPU only)
         max_steps: Cap total optimizer steps (-1 = use epochs)
+        seed: Random seed for reproducibility
 
     Returns:
         Configured TrainingArguments
     """
     return TrainingArguments(
         output_dir=output_dir,
+        seed=seed,
         num_train_epochs=num_train_epochs,
         max_steps=max_steps,
         learning_rate=learning_rate,
@@ -235,10 +244,11 @@ def train(
         Dictionary with final evaluation metrics
     """
     print(f"Loading model and tokenizer: {MODEL_NAME}")
+    set_seed(SEED)
     tokenizer, model = load_tokenizer_and_model()
 
     print(f"Loading dataset: {DATASET_NAME}/{DATASET_CONFIG}")
-    dataset = load_tweet_eval_dataset()
+    dataset = load_emotion_dataset()
 
     raw_train = dataset["train"]
     raw_eval = dataset["validation"]
@@ -295,7 +305,9 @@ def train(
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Fine-tune Twitter-RoBERTa on TweetEval sentiment dataset")
+    parser = argparse.ArgumentParser(
+        description="Fine-tune Twitter-RoBERTa for emotion classification on dair-ai/emotion"
+    )
     parser.add_argument(
         "--output_dir",
         type=str,

@@ -10,6 +10,7 @@ from src.training import (
     LABEL_NAMES,
     MAX_LENGTH,
     MODEL_NAME,
+    SEED,
     compute_metrics,
     create_training_args,
     load_tokenizer_and_model,
@@ -79,6 +80,10 @@ def test_create_training_args_default_values():
     assert args.metric_for_best_model == "f1_macro"
 
 
+def test_create_training_args_sets_seed():
+    assert create_training_args().seed == SEED
+
+
 def test_create_training_args_custom_values():
     """Test TrainingArguments with custom values."""
     args = create_training_args(
@@ -95,9 +100,9 @@ def test_create_training_args_custom_values():
 
 
 def test_label_names_defined():
-    """Test that label names are correctly defined."""
-    assert LABEL_NAMES == ["negative", "neutral", "positive"]
-    assert len(LABEL_NAMES) == 3
+    """The six emotion labels are defined in integer-label order (0-5)."""
+    assert LABEL_NAMES == ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    assert len(LABEL_NAMES) == 6
 
 
 def test_max_length_value():
@@ -106,8 +111,8 @@ def test_max_length_value():
 
 
 def test_model_name_defined():
-    """Test that MODEL_NAME is correctly defined."""
-    assert MODEL_NAME == "cardiffnlp/twitter-roberta-base-sentiment"
+    """The backbone is the task-agnostic MLM base, not a task-tuned checkpoint."""
+    assert MODEL_NAME == "cardiffnlp/twitter-roberta-base"
 
 
 @pytest.mark.slow
@@ -117,7 +122,7 @@ def test_load_tokenizer_and_model():
 
     assert tokenizer is not None
     assert model is not None
-    assert model.config.num_labels == 3
+    assert model.config.num_labels == 6
 
 
 def test_training_uses_the_shared_preprocess_symbol():
