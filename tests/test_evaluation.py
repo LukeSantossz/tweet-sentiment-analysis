@@ -1,8 +1,10 @@
 """Tests for the evaluation module."""
 
+import numpy as np
 import pytest
+from sklearn.metrics import f1_score
 
-from src.evaluation import macro_f1_pct_gain, per_class_f1
+from src.evaluation import evaluation_report, macro_f1_pct_gain, per_class_f1
 
 
 def test_macro_f1_pct_gain_returns_zero_when_equal():
@@ -29,3 +31,26 @@ def test_per_class_f1_covers_all_labels_when_class_absent():
     result = per_class_f1(y_true, y_pred)
     assert set(result.keys()) == {"negative", "neutral", "positive"}
     assert result["positive"] == 0.0
+
+
+def test_evaluation_report_matches_sklearn_on_known_input():
+    predictions = np.array(
+        [
+            [2.0, 0.1, 0.1],  # argmax 0
+            [0.1, 2.0, 0.1],  # argmax 1
+            [0.1, 0.1, 2.0],  # argmax 2
+            [2.0, 0.1, 0.1],  # argmax 0
+        ]
+    )
+    labels = np.array([0, 1, 2, 1])  # last row is wrong -> 3/4 correct
+    preds = [0, 1, 2, 0]
+
+    report = evaluation_report(predictions, labels)
+
+    assert report["accuracy"] == pytest.approx(0.75)
+    assert report["f1_macro"] == pytest.approx(f1_score(labels, preds, average="macro"))
+    assert report["per_class_f1"]["neutral"] == pytest.approx(
+        f1_score(labels, preds, average=None, labels=[0, 1, 2])[1]
+    )
+    assert report["confusion_matrix"].shape == (3, 3)
+    assert int(report["confusion_matrix"].sum()) == 4
