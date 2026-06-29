@@ -1,7 +1,10 @@
 """Tests for the training module."""
 
+import sys
+
 import numpy as np
 import pytest
+import torch
 
 from src.training import (
     LABEL_NAMES,
@@ -10,6 +13,7 @@ from src.training import (
     compute_metrics,
     create_training_args,
     load_tokenizer_and_model,
+    parse_args,
 )
 
 
@@ -140,3 +144,40 @@ def test_tokenize_dataset_applies_preprocess_for_model():
     training.tokenize_dataset(raw, fake_tokenizer)
 
     assert captured["texts"] == ["Hey @user check http"]
+
+
+def test_create_training_args_fp16_default_off():
+    assert create_training_args().fp16 is False
+    assert create_training_args(fp16=False).fp16 is False
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="fp16=True requires CUDA")
+def test_create_training_args_enables_fp16_on_cuda():
+    assert create_training_args(fp16=True).fp16 is True
+
+
+def test_create_training_args_sets_max_steps():
+    assert create_training_args(max_steps=10).max_steps == 10
+    assert create_training_args().max_steps == -1
+
+
+def test_subset_size_clamps_to_available():
+    from src.training import subset_size
+
+    assert subset_size(3, 10) == 3
+    assert subset_size(10, 3) == 3
+    assert subset_size(5, None) == 5
+    assert subset_size(5, -1) == 5
+
+
+def test_parse_args_accepts_fp16_and_smoke_flags(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "--fp16", "--max_steps", "5", "--max_train_samples", "64", "--max_eval_samples", "32"],
+    )
+    args = parse_args()
+    assert args.fp16 is True
+    assert args.max_steps == 5
+    assert args.max_train_samples == 64
+    assert args.max_eval_samples == 32
