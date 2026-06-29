@@ -163,7 +163,7 @@ tweet-sentiment-analysis/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
 ├── tests/
 │   ├── test_preprocessing.py       # 16 unit tests for the preprocessing functions
-│   └── test_training.py            # 10 tests for the training module (config, metrics, wiring)
+│   └── test_training.py            # 11 tests for the training module (config, metrics, wiring)
 ├── notebooks/
 │   ├── 01_eda.ipynb                # Class distribution, noise patterns
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
@@ -186,7 +186,7 @@ tweet-sentiment-analysis/
 - [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
 - [x] Zero-shot baseline — 70% accuracy, 0.71 macro F1
 - [x] Training script — Trainer API with early stopping and CLI args
-- [x] Training module tests — 10 tests (config, metrics, constants, wiring)
+- [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 
