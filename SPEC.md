@@ -1,40 +1,45 @@
-# SPEC: feat(training): GPU mixed-precision and smoke-run controls
+# SPEC: feat(training): execute fine-tuning run and save best checkpoint
 
 ## Problem
-`src/training.py` hardcodes `fp16=False` and offers no fast smoke path, so the fine-tune neither fits an 8 GB consumer GPU comfortably nor allows a quick end-to-end validation before a multi-minute run.
+The fine-tuning run has never executed, so every model metric in the project is still the zero-shot baseline; #26 must run training on a GPU, persist the best checkpoint, and monitor validation metrics per epoch.
 
 ## Design Decision
-Add mixed-precision and smoke controls to `src/training.py`: an `fp16` setting (default: enabled when CUDA is available, off on CPU) that roughly halves memory and speeds up training on the RTX 3070; and `--max_steps`, `--max_train_samples`, `--max_eval_samples` flags to run a few steps on a tiny subset for a smoke test. The default full-run recipe is unchanged except that fp16 turns on automatically on GPU. Preprocessing (`preprocess_for_model` / `clean_tweet_text`), model, and dataset choices are untouched.
+Execute the existing, test-covered script unchanged — `python -m src.training` with the default recipe fixed by ADRs 0001–0010 (3 epochs, lr 2e-5, batch 16/32, max_length 128, fp16 auto-on, early stopping patience 2, best by validation f1_macro) — on the local RTX 3070, saving the best checkpoint to `./outputs/finetuned-model`. Capture per-epoch and final validation metrics (loss, accuracy, f1_macro) as reproducible evidence. The README Results table (fine-tuned row in bold, per-class analysis vs baseline) is deferred to #27, which evaluates the checkpoint on the same 1,000-example test sample the baseline used; pairing fine-tuned-validation against baseline-test would not be comparable. #26 touches only Project Status and Known Issues in the README.
 
 ## Alternatives Considered
-- **Keep fp32 (no fp16).** Rejected: fp32 RoBERTa-base at batch 16 risks OOM on an 8 GB card (worse with other GPU apps) and is ~2x slower; fp16 is the standard consumer-GPU choice with negligible fine-tuning accuracy impact.
-- **A single `--smoke` boolean.** Rejected for explicit `--max_steps` / `--max-*-samples`: finer control, reusable, and standard in Hugging Face example scripts.
+- **Fill the Results table in #26 with the validation numbers.** Rejected: the baseline was measured on the test sample; validation-vs-test is not a fair comparison and would violate the README Results model. The comparable evaluation is #27.
+- **Re-train with a new recipe / new hyperparameters.** Rejected: the recipe is already decided across ADRs 0001–0010 and the script is test-covered; #26 is execution, not redesign — changing hyperparameters opens a new design scope.
+- **Publish the checkpoint to the HF Hub as the #26 deliverable.** Rejected: artifact distribution is out of scope; "saved to disk" satisfies the issue, and a large binary does not enter git.
 
 ## Scope
 Includes:
-- `src/training.py`: `create_training_args` gains `fp16: bool` and `max_steps: int` (passed to `TrainingArguments`); `train` gains `fp16: bool | None` (None → auto from `torch.cuda.is_available()`), `max_steps`, `max_train_samples`, `max_eval_samples` (subset via `Dataset.select`, clamped to the split size); `parse_args` exposes all of them.
-- Tests for the new `create_training_args` parameters (and the subset clamp helper if extracted).
-- `docs/adr/0010-mixed-precision-training.md`.
-- Correct the training dataset repo id to the namespaced `cardiffnlp/tweet_eval` (the bare `tweet_eval` is rejected by the pinned `datasets`/`huggingface_hub`); surfaced and validated end-to-end by the smoke run.
+- Run `python -m src.training` on GPU to completion without errors (issue AC).
+- Best checkpoint saved to `./outputs/finetuned-model` (gitignored).
+- Per-epoch and final validation metrics (loss, accuracy, f1_macro) captured with command, seed, and versions.
+- README updates limited to Project Status (move "Execute the fine-tuning run" to Done) and Known Issues ("No fine-tuned model yet" → checkpoint produced locally, not versioned; Results still baseline until #27).
+- Close #26 with the metrics and log excerpt as PR/issue evidence.
 
 Does NOT include:
-- Executing the fine-tuning run, the checkpoint, or any metrics — that is the #26 run, done separately on a free GPU.
-- Changing batch size, learning rate, epochs, the model, the dataset content/choice (TweetEval is unchanged; only its repo id is corrected, see Includes), or the preprocessing.
-- Distributed / multi-GPU, gradient checkpointing, or CPU offload.
+- The Results table fine-tuned row and per-class comparison vs baseline on the test set — that is #27.
+- Any change to hyperparameters, the model, the dataset, preprocessing, or `src/training.py` code.
+- Checkpoint distribution (HF Hub, release), batch inference, or the serving API.
+- Versioning the checkpoint binary.
 
 ## Acceptance Criteria
-- `create_training_args(fp16=True).fp16 is True`; the default remains `False`.
-- `create_training_args(max_steps=10).max_steps == 10`; the default remains `-1`.
-- A subset helper returns at most N items and never more than the split size (e.g. `subset_len(split_size=3, n=10) == 3`).
-- `parse_args` accepts `--fp16` / `--no-fp16`, `--max_steps`, `--max_train_samples`, `--max_eval_samples`.
-- `ruff check` / `ruff format --check` clean; `pytest -m "not slow"` green (run in the new `.venv` and in CI).
+- Training process exits 0 and the log shows `Training Complete!`.
+- `./outputs/finetuned-model/` contains `model.safetensors`, `config.json`, and the tokenizer files.
+- Per-epoch validation metrics (loss, accuracy, f1_macro) appear in the log for each epoch run (≤3 with early stopping).
+- Final validation f1_macro is reported and meets the 0.71 baseline target (formal test-set comparison deferred to #27); a value below 0.71 reopens the hyperparameter question.
+- `ruff check` / `ruff format --check` clean and `pytest -m "not slow"` green (no code change, confirmed not broken).
 
 ## Reproducibility
-- Fast tests run in the project venv (`.venv`, Python 3.12 + CUDA torch) and in CI.
-- Smoke command (next step, GPU): `python -m src.training --max_steps 5 --max_train_samples 64 --max_eval_samples 64 --output_dir ./outputs/smoke`.
-- Base model `cardiffnlp/twitter-roberta-base-sentiment`; versions per `requirements.txt`.
+- Command: `python -m src.training` (defaults), in `.venv` (Python 3.12, torch 2.12.1+cu130).
+- Seed: HF Trainer default `seed=42` (not overridden in `create_training_args`); deterministic for shuffling/init, but fp16+CUDA kernels are not bit-deterministic, so numbers may vary slightly between runs.
+- Versions: `requirements.txt` (torch 2.12.1+cu130, transformers, datasets). Base model `cardiffnlp/twitter-roberta-base-sentiment`; dataset `cardiffnlp/tweet_eval`/sentiment.
+- Hardware: NVIDIA RTX 3070, 8 GB.
 
 ## Risks and Assumptions
-- Assumption: fp16 mixed precision does not materially change final accuracy for this fine-tune (standard for RoBERTa-base). What would invalidate it: a measured accuracy regression vs fp32 (not measured here).
-- Assumption: a CUDA torch 2.12.1 wheel installs and sees the RTX 3070 — the in-progress env setup validates this; if CUDA is unavailable, fp16 auto-disables and the change is inert on CPU.
-- Risk: subsetting with N larger than the split size — mitigated by clamping with `min(N, len)`.
+- Assumption: the ADR 0001–0010 recipe beats the 0.71 macro-F1 baseline. Invalidated by a final f1_macro below baseline → revisit hyperparameters (new scope).
+- Assumption: fp16 does not materially degrade accuracy (ADR 0010). Invalidated by a measured regression vs fp32.
+- Risk: fp16/CUDA non-determinism → numbers do not reproduce bit-for-bit; mitigated by declaring seed and versions and reporting numbers as measured, not exact.
+- Risk: the checkpoint is local and gitignored → #27/#28 assume `./outputs/finetuned-model` exists; distribution is out of scope.
