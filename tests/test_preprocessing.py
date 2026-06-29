@@ -2,6 +2,7 @@ from src.preprocessing import (
     clean_tweet_text,
     handle_emojis,
     normalize_hashtags,
+    preprocess_for_model,
     remove_mentions,
     remove_urls,
     to_lowercase,
@@ -102,3 +103,20 @@ def test_clean_tweet_text_border():
     result_info = clean_tweet_text(tweet_data)
 
     assert result_info == output_data
+
+
+def test_preprocess_for_model_normalizes_mentions_and_urls():
+    assert preprocess_for_model("Hey @joao check http://x.co now") == "Hey @user check http now"
+
+
+def test_preprocess_for_model_preserves_case_hashtags_emoji():
+    assert preprocess_for_model("I LOVE #Python 😊") == "I LOVE #Python 😊"
+
+
+def test_preprocess_for_model_leaves_bare_at_symbol():
+    assert preprocess_for_model("email @ me") == "email @ me"
+
+
+def test_preprocess_for_model_is_idempotent():
+    text = "Hey @user check http #NLP 🔥"
+    assert preprocess_for_model(preprocess_for_model(text)) == preprocess_for_model(text)
