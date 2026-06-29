@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sklearn.metrics import f1_score
 
-from src.evaluation import divergent_classes, evaluation_report, macro_f1_pct_gain, per_class_f1
+from src.evaluation import divergent_classes, evaluation_report, macro_f1_pct_gain, per_class_f1, predict_split
 
 
 def test_macro_f1_pct_gain_returns_zero_when_equal():
@@ -66,3 +66,21 @@ def test_divergent_classes_ranks_largest_shift_first():
 def test_divergent_classes_returns_all_labels():
     flat = {"negative": 0.5, "neutral": 0.5, "positive": 0.5}
     assert sorted(divergent_classes(flat, flat)) == ["negative", "neutral", "positive"]
+
+
+@pytest.mark.slow
+def test_predict_split_returns_logits_one_row_each():
+    from datasets import DatasetDict
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    from src.training import MODEL_NAME, load_tweet_eval_dataset, tokenize_dataset
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+    raw = load_tweet_eval_dataset()["test"].select(range(8))
+    tokenized = tokenize_dataset(DatasetDict({"test": raw}), tokenizer)["test"]
+
+    logits = predict_split(model, tokenized, batch_size=8)
+
+    assert logits.shape == (8, 3)
+    assert set(np.argmax(logits, axis=1).tolist()).issubset({0, 1, 2})

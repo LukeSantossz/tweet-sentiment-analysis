@@ -7,6 +7,7 @@ through `tokenize_dataset` so the comparison is fair (ADR 0009).
 
 import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score
+from transformers import Trainer, TrainingArguments
 
 from .training import LABEL_NAMES, compute_metrics
 
@@ -52,3 +53,17 @@ def divergent_classes(
         key=lambda name: abs(finetuned_per_class[name] - baseline_per_class[name]),
         reverse=True,
     )
+
+
+def predict_split(model, tokenized_split, batch_size: int = 32) -> np.ndarray:
+    """Run batched inference with Trainer.predict and return raw logits (n_rows, num_labels).
+
+    Device is auto-detected by Trainer; evaluation runs in fp32 (no fp16 flag).
+    """
+    args = TrainingArguments(
+        output_dir="./outputs/eval-tmp",
+        per_device_eval_batch_size=batch_size,
+        report_to="none",
+    )
+    trainer = Trainer(model=model, args=args)
+    return trainer.predict(tokenized_split).predictions
