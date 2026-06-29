@@ -51,8 +51,10 @@ LABEL_NAMES = ["negative", "neutral", "positive"]
 
 
 def subset_size(available: int, requested: int | None) -> int:
-    """Return how many rows to keep: all of them unless a smaller cap is requested."""
-    return available if requested is None else min(requested, available)
+    """Return how many rows to keep: all of them unless a smaller non-negative cap is requested."""
+    if requested is None or requested < 0:
+        return available
+    return min(requested, available)
 
 
 def load_tokenizer_and_model() -> tuple[PreTrainedTokenizerBase, PreTrainedModel]:
