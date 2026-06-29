@@ -15,10 +15,11 @@ Includes:
 - `src/training.py`: `create_training_args` gains `fp16: bool` and `max_steps: int` (passed to `TrainingArguments`); `train` gains `fp16: bool | None` (None → auto from `torch.cuda.is_available()`), `max_steps`, `max_train_samples`, `max_eval_samples` (subset via `Dataset.select`, clamped to the split size); `parse_args` exposes all of them.
 - Tests for the new `create_training_args` parameters (and the subset clamp helper if extracted).
 - `docs/adr/0010-mixed-precision-training.md`.
+- Correct the training dataset repo id to the namespaced `cardiffnlp/tweet_eval` (the bare `tweet_eval` is rejected by the pinned `datasets`/`huggingface_hub`); surfaced and validated end-to-end by the smoke run.
 
 Does NOT include:
 - Executing the fine-tuning run, the checkpoint, or any metrics — that is the #26 run, done separately on a free GPU.
-- Changing batch size, learning rate, epochs, the model, the dataset, or the preprocessing.
+- Changing batch size, learning rate, epochs, the model, the dataset content/choice (TweetEval is unchanged; only its repo id is corrected, see Includes), or the preprocessing.
 - Distributed / multi-GPU, gradient checkpointing, or CPU offload.
 
 ## Acceptance Criteria
