@@ -38,7 +38,7 @@ Classifies the emotion of social-media text using a Twitter-specialized RoBERTa 
 ```mermaid
 flowchart LR
     subgraph Data
-        A[TweetEval Dataset<br/>45.6K train · 2K val · 12.3K test]
+        A[dair-ai/emotion<br/>16K train · 2K val · 2K test]
     end
 
     subgraph Preprocessing
@@ -51,7 +51,7 @@ flowchart LR
     end
 
     subgraph Model
-        D[twitter-roberta-base-sentiment<br/>CardiffNLP · 125M params]
+        D[twitter-roberta-base<br/>CardiffNLP · 125M params · task-agnostic]
     end
 
     subgraph Evaluation
@@ -63,7 +63,7 @@ flowchart LR
     C --> D --> E
 ```
 
-The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table. _The diagram above predates ADR 0009 and is refreshed in #35._
+The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table.
 
 ## Engineering Decisions
 
@@ -71,7 +71,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 
 | Decision | Rationale |
 | --- | --- |
-| Base model `twitter-roberta-base-sentiment` | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets |
+| Base model `twitter-roberta-base-sentiment` (v1 sentiment) | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets; amended by [ADR 0011](docs/adr/0011-emotion-task-pivot.md) for the emotion pivot |
 | `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md) — conservative margin over the 99th-percentile length |
 | Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md) — the class distribution is imbalanced |
 | URLs → `[URL]` token | [ADR 0004](docs/adr/0004-url-token-replacement.md) — keep the link signal, drop the noise |
@@ -192,7 +192,7 @@ tweet-sentiment-analysis/
 - [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
-- [x] Fine-tuning run — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808
+- [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
 - [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
 - [x] Emotion-task pivot — 6-class emotion on dair-ai/emotion, task-agnostic backbone (#61)
 - [x] Frozen-features baseline
