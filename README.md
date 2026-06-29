@@ -63,7 +63,7 @@ flowchart LR
     C --> D --> E
 ```
 
-Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is the reference implementation used by tests and notebooks, while `rust/tweet-preprocessor` is the production path for large-volume data. Both feed the same Trainer-based fine-tuning stage. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its full benchmark table.
+The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table. _The diagram above predates ADR 0009 and is refreshed in #35._
 
 ## Engineering Decisions
 
@@ -162,8 +162,8 @@ tweet-sentiment-analysis/
 ├── benchmarks/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
 ├── tests/
-│   ├── test_preprocessing.py       # 12 unit tests for the cleaning functions
-│   └── test_training.py            # 9 tests for the training module (config, metrics)
+│   ├── test_preprocessing.py       # 16 unit tests for the preprocessing functions
+│   └── test_training.py            # 10 tests for the training module (config, metrics, wiring)
 ├── notebooks/
 │   ├── 01_eda.ipynb                # Class distribution, noise patterns
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
@@ -182,11 +182,11 @@ tweet-sentiment-analysis/
 ### Done
 
 - [x] Exploratory data analysis — class imbalance and noise patterns mapped
-- [x] Python preprocessing pipeline — 6 cleaning functions, 12 passing tests
+- [x] Python preprocessing pipeline — 6 cleaning functions + a model-aligned preprocessor, 16 passing tests
 - [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
 - [x] Zero-shot baseline — 70% accuracy, 0.71 macro F1
 - [x] Training script — Trainer API with early stopping and CLI args
-- [x] Training module tests — 9 tests (config, metrics, constants)
+- [x] Training module tests — 10 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 
