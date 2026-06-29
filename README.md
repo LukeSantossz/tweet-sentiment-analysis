@@ -63,7 +63,7 @@ flowchart LR
     C --> D --> E
 ```
 
-Two preprocessing paths share one cleaning contract: `src/preprocessing.py` is the reference implementation used by tests and notebooks, while `rust/tweet-preprocessor` is the production path for large-volume data. Both feed the same Trainer-based fine-tuning stage. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its full benchmark table.
+The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table. _The diagram above predates ADR 0009 and is refreshed in #35._
 
 ## Engineering Decisions
 
@@ -79,6 +79,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 | Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md) — avoid overfitting a small train set |
 | Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parity-validated 28.5x at 1M tweets |
 | CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
+| Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md) — one shared preprocessor matching the base model's input convention |
 
 ## Results
 
@@ -161,8 +162,8 @@ tweet-sentiment-analysis/
 ├── benchmarks/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
 ├── tests/
-│   ├── test_preprocessing.py       # 12 unit tests for the cleaning functions
-│   └── test_training.py            # 9 tests for the training module (config, metrics)
+│   ├── test_preprocessing.py       # 16 unit tests for the preprocessing functions
+│   └── test_training.py            # 11 tests for the training module (config, metrics, wiring)
 ├── notebooks/
 │   ├── 01_eda.ipynb                # Class distribution, noise patterns
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
@@ -181,11 +182,11 @@ tweet-sentiment-analysis/
 ### Done
 
 - [x] Exploratory data analysis — class imbalance and noise patterns mapped
-- [x] Python preprocessing pipeline — 6 cleaning functions, 12 passing tests
+- [x] Python preprocessing pipeline — 6 cleaning functions + a model-aligned preprocessor, 16 passing tests
 - [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
 - [x] Zero-shot baseline — 70% accuracy, 0.71 macro F1
 - [x] Training script — Trainer API with early stopping and CLI args
-- [x] Training module tests — 9 tests (config, metrics, constants)
+- [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 
@@ -204,7 +205,6 @@ tweet-sentiment-analysis/
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h, so fine-tuning is deferred to a GPU environment.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
-- **Reference pipeline not wired into training** — `src/training.py` loads cleaned data straight from the HF Hub, so `src/preprocessing.py` currently serves tests, notebooks, and the Rust port's parity reference rather than the live training path.
 
 ## License
 

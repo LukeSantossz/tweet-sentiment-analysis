@@ -7,6 +7,8 @@ to its `:name:` form (e.g. 😊 → `:smiling_face_with_smiling_eyes:`).
 
 Accepted.
 
+**Scope:** Applies to the generic `clean_tweet_text` utility (and the Rust scale path), not the model training/serving path, which preserves raw emoji per [ADR 0009](0009-model-path-preprocessing.md).
+
 ## Considered Options
 
 - **Demojize to `:name:` (chosen)**: turns sentiment-bearing emojis into tokenizer-readable

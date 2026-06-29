@@ -114,3 +114,29 @@ def test_load_tokenizer_and_model():
     assert tokenizer is not None
     assert model is not None
     assert model.config.num_labels == 3
+
+
+def test_training_uses_the_shared_preprocess_symbol():
+    import src.training as training
+    from src import preprocessing
+
+    assert training.preprocess_for_model is preprocessing.preprocess_for_model
+
+
+def test_tokenize_dataset_applies_preprocess_for_model():
+    """The tokenize path must preprocess text with preprocess_for_model before
+    tokenizing, not merely import the symbol."""
+    from datasets import Dataset, DatasetDict
+
+    import src.training as training
+
+    captured = {}
+
+    def fake_tokenizer(texts, **kwargs):
+        captured["texts"] = list(texts)
+        return {"input_ids": [[0] for _ in texts]}
+
+    raw = DatasetDict({"train": Dataset.from_dict({"text": ["Hey @joao check http://x.co"]})})
+    training.tokenize_dataset(raw, fake_tokenizer)
+
+    assert captured["texts"] == ["Hey @user check http"]
