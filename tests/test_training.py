@@ -140,3 +140,21 @@ def test_tokenize_dataset_applies_preprocess_for_model():
     training.tokenize_dataset(raw, fake_tokenizer)
 
     assert captured["texts"] == ["Hey @user check http"]
+
+
+def test_create_training_args_enables_fp16():
+    assert create_training_args(fp16=True).fp16 is True
+    assert create_training_args().fp16 is False
+
+
+def test_create_training_args_sets_max_steps():
+    assert create_training_args(max_steps=10).max_steps == 10
+    assert create_training_args().max_steps == -1
+
+
+def test_subset_size_clamps_to_available():
+    from src.training import subset_size
+
+    assert subset_size(3, 10) == 3
+    assert subset_size(10, 3) == 3
+    assert subset_size(5, None) == 5
