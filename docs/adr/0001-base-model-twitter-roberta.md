@@ -23,3 +23,6 @@ Accepted.
   cleaning pipeline must stay compatible with the base model's assumptions.
 - The fine-tuning gain is measured against this model's own zero-shot baseline on the shared
   TweetEval test split.
+- Amended by [ADR 0011](0011-emotion-task-pivot.md): this base-model choice stands for the v1
+  sentiment artifact (tagged `v1-sentiment`), but the emotion task fine-tunes the task-agnostic
+  `twitter-roberta-base` backbone instead — the root-cause fix for the #59 regression.
