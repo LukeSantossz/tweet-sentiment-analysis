@@ -31,7 +31,7 @@ Does NOT include:
 - `per_class_f1` returns a dict keyed by `LABEL_NAMES` with each F1 in `[0, 1]`: `returns_one_per_label_on_perfect_predictions`.
 - `evaluation_report` returns `accuracy`, `f1_macro` (matching `compute_metrics`), a per-class F1 mapping, and a 3x3 confusion matrix that matches `sklearn` on a known small input: `matches_sklearn_on_known_input`.
 - `divergent_classes` orders labels by absolute per-class F1 delta between the two models: `ranks_largest_shift_first`, `returns_all_labels`.
-- `predict_split` (slow) returns one predicted label per input row with values in `{0, 1, 2}` over a small real batch: `returns_one_label_per_row`.
+- `predict_split` (slow) returns a logits array with one row per input over a small real batch, whose argmax is a label in `{0, 1, 2}`: `returns_logits_one_row_each`. Returning logits (not argmax labels) lets `evaluation_report` reuse `compute_metrics` and serves the future API (#36).
 - Notebook deliverables, verifiable by inspection of the executed notebook: comparative table with accuracy and macro F1 for both models on the full test split; the macro-F1 percentage gain stated; two confusion matrices side by side; an error-analysis section with at least one hypothesis per divergent class.
 - README Results table shows the recomputed baseline, the fine-tuned numbers, and the gain, with a reproduction pointer.
 - `ruff check .` and `ruff format --check .` are clean, and `pytest -m "not slow"` is green.
