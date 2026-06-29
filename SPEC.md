@@ -4,11 +4,11 @@
 `src/training.py` hardcodes `fp16=False` and offers no fast smoke path, so the fine-tune neither fits an 8 GB consumer GPU comfortably nor allows a quick end-to-end validation before a multi-minute run.
 
 ## Design Decision
-Add mixed-precision and smoke controls to `src/training.py`: an `fp16` setting (default: enabled when CUDA is available, off on CPU) that roughly halves memory and speeds up training on the RTX 3070; and `--max-steps`, `--max-train-samples`, `--max-eval-samples` flags to run a few steps on a tiny subset for a smoke test. The default full-run recipe is unchanged except that fp16 turns on automatically on GPU. Preprocessing (`preprocess_for_model` / `clean_tweet_text`), model, and dataset choices are untouched.
+Add mixed-precision and smoke controls to `src/training.py`: an `fp16` setting (default: enabled when CUDA is available, off on CPU) that roughly halves memory and speeds up training on the RTX 3070; and `--max_steps`, `--max_train_samples`, `--max_eval_samples` flags to run a few steps on a tiny subset for a smoke test. The default full-run recipe is unchanged except that fp16 turns on automatically on GPU. Preprocessing (`preprocess_for_model` / `clean_tweet_text`), model, and dataset choices are untouched.
 
 ## Alternatives Considered
 - **Keep fp32 (no fp16).** Rejected: fp32 RoBERTa-base at batch 16 risks OOM on an 8 GB card (worse with other GPU apps) and is ~2x slower; fp16 is the standard consumer-GPU choice with negligible fine-tuning accuracy impact.
-- **A single `--smoke` boolean.** Rejected for explicit `--max-steps` / `--max-*-samples`: finer control, reusable, and standard in Hugging Face example scripts.
+- **A single `--smoke` boolean.** Rejected for explicit `--max_steps` / `--max-*-samples`: finer control, reusable, and standard in Hugging Face example scripts.
 
 ## Scope
 Includes:
@@ -25,12 +25,12 @@ Does NOT include:
 - `create_training_args(fp16=True).fp16 is True`; the default remains `False`.
 - `create_training_args(max_steps=10).max_steps == 10`; the default remains `-1`.
 - A subset helper returns at most N items and never more than the split size (e.g. `subset_len(split_size=3, n=10) == 3`).
-- `parse_args` accepts `--fp16` / `--no-fp16`, `--max-steps`, `--max-train-samples`, `--max-eval-samples`.
+- `parse_args` accepts `--fp16` / `--no-fp16`, `--max_steps`, `--max_train_samples`, `--max_eval_samples`.
 - `ruff check` / `ruff format --check` clean; `pytest -m "not slow"` green (run in the new `.venv` and in CI).
 
 ## Reproducibility
 - Fast tests run in the project venv (`.venv`, Python 3.12 + CUDA torch) and in CI.
-- Smoke command (next step, GPU): `python -m src.training --max-steps 5 --max-train-samples 64 --max-eval-samples 64 --output_dir ./outputs/smoke`.
+- Smoke command (next step, GPU): `python -m src.training --max_steps 5 --max_train_samples 64 --max_eval_samples 64 --output_dir ./outputs/smoke`.
 - Base model `cardiffnlp/twitter-roberta-base-sentiment`; versions per `requirements.txt`.
 
 ## Risks and Assumptions
