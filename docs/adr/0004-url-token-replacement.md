@@ -7,6 +7,8 @@ carry signal. The cleaning pipeline replaces any URL with a single `[URL]` token
 
 Accepted.
 
+**Scope:** Applies to the generic `clean_tweet_text` utility (and the Rust scale path), not the model training/serving path, which uses `http` per [ADR 0009](0009-model-path-preprocessing.md).
+
 ## Considered Options
 
 - **`[URL]` token (chosen)**: keeps the "a link was here" signal while discarding the
