@@ -49,6 +49,8 @@ nul
 
 # Data & Models (large files)
 models/
+outputs/
+*.safetensors
 *.h5
 *.pkl
 *.joblib
