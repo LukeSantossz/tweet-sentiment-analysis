@@ -1,44 +1,39 @@
-# SPEC: fix(preprocessing): resolve train/serving skew via a shared model-aligned preprocessor
+# SPEC: feat(training): GPU mixed-precision and smoke-run controls
 
 ## Problem
-Training tokenizes raw TweetEval text while the planned serving path (#36) would apply `clean_tweet_text`, so the model would receive a different input style at inference than at training — a train/serving skew that silently degrades accuracy.
+`src/training.py` hardcodes `fp16=False` and offers no fast smoke path, so the fine-tune neither fits an 8 GB consumer GPU comfortably nor allows a quick end-to-end validation before a multi-minute run.
 
 ## Design Decision
-Introduce one shared `preprocess_for_model(text)` that mirrors the CardiffNLP `twitter-roberta-base-sentiment` official `preprocess()` (mentions → `@user`, URLs → `http`, preserving case, hashtags, and raw emoji). Apply it on the training tokenize path now and require the future serving path (#36) to call the same symbol, making training and serving provably consistent. Keep `clean_tweet_text` unchanged as the generic / Rust-parity utility, off the model path. This also avoids train/pretraining skew, because the official convention matches what the base model saw — and TweetEval text already follows it, so the training path is effectively unchanged.
+Add mixed-precision and smoke controls to `src/training.py`: an `fp16` setting (default: enabled when CUDA is available, off on CPU) that roughly halves memory and speeds up training on the RTX 3070; and `--max-steps`, `--max-train-samples`, `--max-eval-samples` flags to run a few steps on a tiny subset for a smoke test. The default full-run recipe is unchanged except that fp16 turns on automatically on GPU. Preprocessing (`preprocess_for_model` / `clean_tweet_text`), model, and dataset choices are untouched.
 
 ## Alternatives Considered
-- **Apply `clean_tweet_text` on both training and serving (Option A).** Rejected: it makes the two paths consistent but feeds a cased, raw-emoji model lowercased / `[URL]` / demojized / `#`-stripped text it never saw, introducing train/pretraining skew and likely lowering accuracy — contradicting ADR 0001.
-- **Document HF-data equivalence only, change nothing in training (Option D).** Rejected as the primary path: it enforces no single contract, and the serving path still needs the official preprocess, converging on the shared function anyway. Its idempotency insight is retained as an acceptance check.
+- **Keep fp32 (no fp16).** Rejected: fp32 RoBERTa-base at batch 16 risks OOM on an 8 GB card (worse with other GPU apps) and is ~2x slower; fp16 is the standard consumer-GPU choice with negligible fine-tuning accuracy impact.
+- **A single `--smoke` boolean.** Rejected for explicit `--max-steps` / `--max-*-samples`: finer control, reusable, and standard in Hugging Face example scripts.
 
 ## Scope
 Includes:
-- `preprocess_for_model(text: str) -> str` in `src/preprocessing.py`, faithfully mirroring the CardiffNLP official `preprocess()`; exported from `src/__init__.py`.
-- `src/training.py` applies `preprocess_for_model` to each example inside `tokenize_fn` before tokenization (imports the shared symbol).
-- Tests: the function matches the official convention; it is idempotent; training uses the exact shared symbol from `src.preprocessing`; the existing `clean_tweet_text` tests still pass.
-- `docs/adr/0009-model-path-preprocessing.md` (new); scope notes added to ADR 0004 and ADR 0005; README Engineering Decisions links ADR 0009; the README Known-Issues "not wired into training" entry is replaced by the resolution.
+- `src/training.py`: `create_training_args` gains `fp16: bool` and `max_steps: int` (passed to `TrainingArguments`); `train` gains `fp16: bool | None` (None → auto from `torch.cuda.is_available()`), `max_steps`, `max_train_samples`, `max_eval_samples` (subset via `Dataset.select`, clamped to the split size); `parse_args` exposes all of them.
+- Tests for the new `create_training_args` parameters (and the subset clamp helper if extracted).
+- `docs/adr/0010-mixed-precision-training.md`.
 
 Does NOT include:
-- Building the FastAPI serving endpoint (#36) or batch inference (#28); #36 will consume `preprocess_for_model`.
-- Executing the fine-tuning run (#26).
-- Any change to `clean_tweet_text` behavior, the Rust port, the dataset, or the model choice.
-- Removing or redefining ADR 0004 / ADR 0005 beyond a scope note.
+- Executing the fine-tuning run, the checkpoint, or any metrics — that is the #26 run, done separately on a free GPU.
+- Changing batch size, learning rate, epochs, the model, the dataset, or the preprocessing.
+- Distributed / multi-GPU, gradient checkpointing, or CPU offload.
 
 ## Acceptance Criteria
-- `preprocess_for_model_matches_cardiffnlp_convention` — fixtures assert mentions → `@user`, URLs → `http`, case preserved, `#` kept, raw emoji preserved.
-- `preprocess_for_model_is_idempotent` — applying it twice equals applying it once on already-normalized text.
-- `training_uses_the_shared_preprocess_symbol` — `src.training.preprocess_for_model is src.preprocessing.preprocess_for_model`, and the tokenize step applies it to its inputs.
-- `clean_tweet_text_unchanged` — the existing preprocessing test suite passes unmodified.
-- `docs/adr/0009-model-path-preprocessing.md` exists; ADR 0004 and ADR 0005 carry a scope note pointing to ADR 0009; the README "Reference pipeline not wired into training" Known-Issue entry is resolved and Engineering Decisions links ADR 0009.
-- Quality gate: `pytest -m "not slow"` green and `ruff check` / `ruff format --check` clean.
+- `create_training_args(fp16=True).fp16 is True`; the default remains `False`.
+- `create_training_args(max_steps=10).max_steps == 10`; the default remains `-1`.
+- A subset helper returns at most N items and never more than the split size (e.g. `subset_len(split_size=3, n=10) == 3`).
+- `parse_args` accepts `--fp16` / `--no-fp16`, `--max-steps`, `--max-train-samples`, `--max-eval-samples`.
+- `ruff check` / `ruff format --check` clean; `pytest -m "not slow"` green (run in the new `.venv` and in CI).
 
 ## Reproducibility
-- Fast tests (pure Python): `python -m pytest tests/test_preprocessing.py -q` (needs `emoji`, `pytest`).
-- The training-wiring test imports the ML stack and runs in CI's `test` job (`pip install -r requirements.txt`, then `pytest -m "not slow"`); it is not run on this machine (torch / transformers absent — see project memory).
-- Real-TweetEval idempotency is argued from the CardiffNLP convention (the published `text` is already `@user`/`http`); a dataset-loading check would be a `slow` test outside CI's default selection, so it is not claimed as executed.
-- Versions per `requirements.txt`; base model `cardiffnlp/twitter-roberta-base-sentiment`.
+- Fast tests run in the project venv (`.venv`, Python 3.12 + CUDA torch) and in CI.
+- Smoke command (next step, GPU): `python -m src.training --max-steps 5 --max-train-samples 64 --max-eval-samples 64 --output_dir ./outputs/smoke`.
+- Base model `cardiffnlp/twitter-roberta-base-sentiment`; versions per `requirements.txt`.
 
 ## Risks and Assumptions
-- Assumption: TweetEval's published `text` already follows the `@user`/`http` convention, so applying `preprocess_for_model` in training is ~idempotent and does not change training results or disturb #26. What would invalidate it: a sample showing the dataset is not normalized — then the "training unchanged" claim must be re-checked.
-- Assumption: the CardiffNLP official `preprocess()` (mentions → `@user`, URLs → `http`, cased, `#` kept, raw emoji) is the model's expected input, per its Hugging Face model card.
-- Risk: superseding ADR 0004 / ADR 0005 on the model path is a decision-records change; mitigated by adding ADR 0009 and scope notes rather than deleting, and leaving the generic utility and Rust path intact.
-- Risk: two preprocessing contracts could confuse contributors; mitigated by explicit naming (`preprocess_for_model` vs `clean_tweet_text`) and ADR 0009.
+- Assumption: fp16 mixed precision does not materially change final accuracy for this fine-tune (standard for RoBERTa-base). What would invalidate it: a measured accuracy regression vs fp32 (not measured here).
+- Assumption: a CUDA torch 2.12.1 wheel installs and sees the RTX 3070 — the in-progress env setup validates this; if CUDA is unavailable, fp16 auto-disables and the change is inert on CPU.
+- Risk: subsetting with N larger than the split size — mitigated by clamping with `min(N, len)`.
