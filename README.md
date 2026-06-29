@@ -89,7 +89,7 @@ The fine-tuning run has executed (validation accuracy 0.817 / macro F1 0.808, se
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
 | **Zero-shot baseline** | **70%** | **0.71** |
-| Fine-tuned (test set, #27) | — | — |
+| Fine-tuned (pending) | — | — |
 
 Per-class baseline F1: negative 0.70 · neutral 0.70 · positive 0.73 — performance is even across classes, which makes macro F1 a fair single-number target for the fine-tuned model to beat.
 

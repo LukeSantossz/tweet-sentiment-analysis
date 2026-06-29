@@ -16,11 +16,11 @@ Includes:
 - Run `python -m src.training` on GPU to completion without errors (issue AC).
 - Best checkpoint saved to `./outputs/finetuned-model` (gitignored).
 - Per-epoch and final validation metrics (loss, accuracy, f1_macro) captured with command, seed, and versions.
-- README updates limited to Project Status (move "Execute the fine-tuning run" to Done) and Known Issues ("No fine-tuned model yet" → checkpoint produced locally, not versioned; Results still baseline until #27).
+- README updates: Project Status (move "Execute the fine-tuning run" to Done), Known Issues ("No fine-tuned model yet" → checkpoint produced locally, not versioned), and a minimal Results-prose reconciliation so the section does not contradict the completed run — state the run executed with its validation metric and that the fine-tuned test-set numbers come in #27. The Results table fine-tuned row stays empty/pending here.
 - Close #26 with the metrics and log excerpt as PR/issue evidence.
 
 Does NOT include:
-- The Results table fine-tuned row and per-class comparison vs baseline on the test set — that is #27.
+- Filling the Results table fine-tuned row with numbers, or the per-class comparison vs baseline on the test set — that is #27 (the row stays empty/pending here).
 - Any change to hyperparameters, the model, the dataset, preprocessing, or `src/training.py` code.
 - Checkpoint distribution (HF Hub, release), batch inference, or the serving API.
 - Versioning the checkpoint binary.
