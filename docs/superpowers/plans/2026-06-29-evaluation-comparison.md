@@ -592,26 +592,26 @@ git commit -m "feat(evaluation): add side-by-side comparison notebook"
 
 - [ ] **Step 1: Update the Results table and prose**
 
-Replace the current Results table (which has a `Fine-tuned (pending) — —` row and prose tying the comparison to #27) with the measured numbers from Task 6. Target structure:
+Replace the current Results table (which has a `Fine-tuned (pending) — —` row and prose tying the comparison to #27) with the measured numbers from the executed `notebooks/05_evaluation.ipynb`. **The fine-tuned model did NOT beat the baseline — report this honestly.** Per the README Results rule the **best** row is bold, which is now the **baseline**. Target structure (accuracy as a percentage and macro F1 as a decimal, matching the prior table style):
 
 ```markdown
 ## Results
 
-Both models are evaluated on the **full** TweetEval test split (12,284 rows), each fed the shared `preprocess_for_model` (ADR 0009) for a fair comparison. Reproduce with `notebooks/05_evaluation.ipynb`.
+Both models are evaluated on the **full** TweetEval sentiment test split (12,284 rows), each fed the shared `preprocess_for_model` (ADR 0009) for a fair comparison. Reproduce with `notebooks/05_evaluation.ipynb`.
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
-| Zero-shot baseline | [base acc] | [base f1] |
-| **Fine-tuned** | **[ft acc]** | **[ft f1]** |
+| **Zero-shot baseline** | **72.4%** | **0.724** |
+| Fine-tuned | 70.4% | 0.704 |
 
-Fine-tuning improves macro F1 by **[gain]%** over the recomputed baseline. Per-class analysis and error hypotheses are in `notebooks/05_evaluation.ipynb`.
+Fine-tuning did **not** beat the baseline — macro F1 fell **2.72%** (0.704 vs 0.724). The base model `cardiffnlp/twitter-roberta-base-sentiment` is already fine-tuned on TweetEval sentiment, so re-fine-tuning on the same data overfit: validation macro F1 rose to 0.808 while held-out test fell below the baseline. Per-class analysis (negative recall dropped the most, 78%→69%) and error hypotheses are in `notebooks/05_evaluation.ipynb`. Revisiting the recipe and premise is tracked in #59.
 ```
 
-Fill `[base acc]`, `[base f1]`, `[ft acc]`, `[ft f1]`, `[gain]` from Task 6's printed output. Keep the best (fine-tuned) row in bold, per the README Results rule. Note the recomputed baseline supersedes the prior 70% / 0.71 (raw text, 1,000-sample); if a reader-facing reference to that older number remains elsewhere in the section, reconcile it to the new number.
+The recomputed full-set baseline (0.724) supersedes the prior 70% / 0.71 (raw text, 1,000-sample). **Scope:** edit ONLY the Results section here; the broader narrative reframing (e.g. the "What It Does" line about the bar the fine-tuning run aims to beat) belongs to #40 — do not touch it.
 
 - [ ] **Step 2: Reconcile the Known Issues line**
 
-Update the Known Issues bullet that currently states the Results table "still shows only the zero-shot baseline" and defers the fine-tuned-vs-baseline comparison to #27 — that is now done. State instead that the comparison is published in the Results table and reproducible via `notebooks/05_evaluation.ipynb`. Leave the "checkpoint is local, not versioned" point intact.
+Update the Known Issues bullet that currently states the Results table "still shows only the zero-shot baseline" and defers the comparison to #27 — that is now done. State instead that the full-set comparison is published in Results and reproducible via `notebooks/05_evaluation.ipynb`, that the fine-tuned model underperforms the baseline (−2.72% macro F1) because the base is already TweetEval-tuned, and that revisiting the approach is tracked in #59. Leave the "checkpoint is local, not versioned" point intact.
 
 - [ ] **Step 3: Verify internal consistency**
 
