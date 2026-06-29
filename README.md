@@ -79,6 +79,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 | Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md) — avoid overfitting a small train set |
 | Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parity-validated 28.5x at 1M tweets |
 | CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
+| Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md) — one shared preprocessor matching the base model's input convention |
 
 ## Results
 
@@ -204,7 +205,6 @@ tweet-sentiment-analysis/
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h, so fine-tuning is deferred to a GPU environment.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
-- **Reference pipeline not wired into training** — `src/training.py` loads cleaned data straight from the HF Hub, so `src/preprocessing.py` currently serves tests, notebooks, and the Rust port's parity reference rather than the live training path.
 
 ## License
 
