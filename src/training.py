@@ -38,6 +38,8 @@ from transformers import (
     TrainingArguments,
 )
 
+from .preprocessing import preprocess_for_model
+
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
 DATASET_NAME = "tweet_eval"
 DATASET_CONFIG = "sentiment"
@@ -77,8 +79,9 @@ def tokenize_dataset(dataset: DatasetDict, tokenizer: PreTrainedTokenizerBase) -
     """
 
     def tokenize_fn(examples):
+        texts = [preprocess_for_model(text) for text in examples["text"]]
         return tokenizer(
-            examples["text"],
+            texts,
             padding="max_length",
             truncation=True,
             max_length=MAX_LENGTH,

@@ -41,3 +41,22 @@ def clean_tweet_text(text: str) -> str:
     text = handle_emojis(text)
     text = to_lowercase(text)
     return text
+
+
+def preprocess_for_model(text: str) -> str:
+    """Normalize text to the CardiffNLP twitter-roberta-base-sentiment convention.
+
+    Mirrors the model's official preprocessing: collapse @mentions to ``@user`` and
+    URLs to ``http``, while preserving case, hashtags, and raw emoji. This is the
+    single contract shared by the training tokenizer and the future serving path
+    (issue #36); the generic ``clean_tweet_text`` is intentionally not used on the
+    model path (see docs/adr/0009).
+    """
+    tokens = []
+    for token in text.split(" "):
+        if token.startswith("@") and len(token) > 1:
+            token = "@user"
+        elif token.startswith("http"):
+            token = "http"
+        tokens.append(token)
+    return " ".join(tokens)
