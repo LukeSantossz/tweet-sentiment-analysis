@@ -84,7 +84,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 
 ## Results
 
-The fine-tuning run has executed (validation accuracy 0.817 / macro F1 0.808, see Project Status), but the only result measured on the **test** split so far is the zero-shot baseline — a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`). The fine-tuned model's test-set numbers, the fair comparison against this baseline, are produced in #27:
+The fine-tuning run has executed (see Project Status for the validation metrics and how to reproduce them). The only result measured on the **test** split so far is the zero-shot baseline — a 1,000-example sample of the 12,284-row test split (reproduce with `notebooks/03_inference_baseline.ipynb`). The fine-tuned model's test-set numbers, the fair comparison against this baseline, are produced in #27:
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ tweet-sentiment-analysis/
 - [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
-- [x] Fine-tuning run — best checkpoint (epoch 2) on an RTX 3070 (fp16); validation accuracy 0.817 / macro F1 0.808
+- [x] Fine-tuning run — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808
 
 ### Pending
 
@@ -202,7 +202,7 @@ tweet-sentiment-analysis/
 
 ## Known Issues & Limitations
 
-- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint (validation accuracy 0.817 / macro F1 0.808) under `outputs/finetuned-model`, which is gitignored. The Results table below still shows only the zero-shot baseline; the fair fine-tuned-vs-baseline comparison on the test set is tracked in #27.
+- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Project Status for its validation metrics. The Results table below still shows only the zero-shot baseline; the fair fine-tuned-vs-baseline comparison on the test set is tracked in #27.
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.

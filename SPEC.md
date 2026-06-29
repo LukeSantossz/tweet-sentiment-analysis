@@ -35,7 +35,7 @@ Does NOT include:
 ## Reproducibility
 - Command: `python -m src.training` (defaults), in `.venv` (Python 3.12, torch 2.12.1+cu130).
 - Seed: HF Trainer default `seed=42` (not overridden in `create_training_args`); deterministic for shuffling/init, but fp16+CUDA kernels are not bit-deterministic, so numbers may vary slightly between runs.
-- Versions: `requirements.txt` (torch 2.12.1+cu130, transformers, datasets). Base model `cardiffnlp/twitter-roberta-base-sentiment`; dataset `cardiffnlp/tweet_eval`/sentiment.
+- Versions: transformers/datasets per `requirements.txt`. The GPU/fp16 run used a CUDA torch build that `requirements.txt` does **not** capture (it pins the CPU-CI wheel `torch==2.12.1`): it was installed in the venv via `uv pip install torch==2.12.1 --torch-backend=auto`, which resolved to `2.12.1+cu130` on this machine. Base model `cardiffnlp/twitter-roberta-base-sentiment`; dataset `cardiffnlp/tweet_eval`/sentiment.
 - Hardware: NVIDIA RTX 3070, 8 GB.
 
 ## Risks and Assumptions
