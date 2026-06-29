@@ -190,10 +190,10 @@ tweet-sentiment-analysis/
 - [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
+- [x] Fine-tuning run — best checkpoint (epoch 2) on an RTX 3070 (fp16); validation accuracy 0.817 / macro F1 0.808
 
 ### Pending
 
-- [ ] Execute the fine-tuning run (GPU-bound) and save the best checkpoint
 - [ ] Comparative evaluation — baseline vs fine-tuned, per-class analysis
 - [ ] Batch inference for 1M+ tweets
 - [ ] Full Python-vs-Rust benchmark documented in this README
@@ -202,8 +202,8 @@ tweet-sentiment-analysis/
 
 ## Known Issues & Limitations
 
-- **No fine-tuned model yet** — `outputs/` is empty; every metric reported here is the zero-shot baseline, not a tuned model. Resolves once the training run executes on a GPU.
-- **Training is GPU-bound** — a CPU-only run was estimated at ~25h, so fine-tuning is deferred to a GPU environment.
+- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint (validation accuracy 0.817 / macro F1 0.808) under `outputs/finetuned-model`, which is gitignored. The Results table below still shows only the zero-shot baseline; the fair fine-tuned-vs-baseline comparison on the test set is tracked in #27.
+- **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
 
