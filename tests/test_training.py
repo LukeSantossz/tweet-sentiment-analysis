@@ -277,8 +277,9 @@ def test_resolve_class_weights_missing_class_falls_back_to_none(capsys):
 def test_create_trainer_forwards_processing_class_and_wiring(monkeypatch):
     """create_trainer must forward the tokenizer as processing_class, plus the rest of the
     constructor wiring, to WeightedLossTrainer -- without instantiating the real (heavy) Trainer."""
-    import src.training as training
     from transformers import EarlyStoppingCallback
+
+    import src.training as training
 
     captured = {}
 
