@@ -251,6 +251,7 @@ def create_trainer(
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
         class_weights=class_weights,
+        processing_class=tokenizer,
     )
 
 
