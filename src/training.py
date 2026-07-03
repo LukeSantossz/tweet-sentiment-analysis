@@ -1,8 +1,8 @@
 """
-Fine-tuning script for Tweet Sentiment Classification.
+Fine-tuning script for emotion classification on dair-ai/emotion.
 
-This module implements fine-tuning of the CardiffNLP Twitter-RoBERTa model
-on the TweetEval sentiment dataset using the Hugging Face Trainer API.
+This module implements fine-tuning of the cardiffnlp/twitter-roberta-base model
+on the dair-ai/emotion dataset using the Hugging Face Trainer API.
 
 Hyperparameters:
     - learning_rate: 2e-5
@@ -28,6 +28,7 @@ import numpy as np
 import torch
 from datasets import Dataset, DatasetDict, load_dataset
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.utils.class_weight import compute_class_weight
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -37,17 +38,19 @@ from transformers import (
     PreTrainedTokenizerBase,
     Trainer,
     TrainingArguments,
+    set_seed,
 )
 
 from .preprocessing import preprocess_for_model
 
-MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
-DATASET_NAME = "cardiffnlp/tweet_eval"
-DATASET_CONFIG = "sentiment"
+MODEL_NAME = "cardiffnlp/twitter-roberta-base"
+DATASET_NAME = "dair-ai/emotion"
+DATASET_CONFIG = "split"
 MAX_LENGTH = 128
 DEFAULT_OUTPUT_DIR = "./outputs/finetuned-model"
+SEED = 42
 
-LABEL_NAMES = ["negative", "neutral", "positive"]
+LABEL_NAMES = ["sadness", "joy", "love", "anger", "fear", "surprise"]
 
 
 def subset_size(available: int, requested: int | None) -> int:
@@ -58,19 +61,23 @@ def subset_size(available: int, requested: int | None) -> int:
 
 
 def load_tokenizer_and_model() -> tuple[PreTrainedTokenizerBase, PreTrainedModel]:
-    """Load the pre-trained tokenizer and model."""
+    """Load the tokenizer and a sequence-classification model with a head sized to LABEL_NAMES.
+
+    The backbone is a task-agnostic MLM (no pretrained classification head), so a randomly
+    initialized head is added — the "newly initialized weights" warning is expected (ADR 0011).
+    """
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSequenceClassification.from_pretrained(
         MODEL_NAME,
-        num_labels=3,
+        num_labels=len(LABEL_NAMES),
         id2label={i: label for i, label in enumerate(LABEL_NAMES)},
         label2id={label: i for i, label in enumerate(LABEL_NAMES)},
     )
     return tokenizer, model
 
 
-def load_tweet_eval_dataset() -> DatasetDict:
-    """Load the TweetEval sentiment dataset."""
+def load_emotion_dataset() -> DatasetDict:
+    """Load the dair-ai/emotion dataset (config 'split': 16k/2k/2k, single-label, 6 classes)."""
     return load_dataset(DATASET_NAME, DATASET_CONFIG)
 
 
@@ -126,6 +133,54 @@ def compute_metrics(eval_pred: EvalPrediction) -> dict[str, float]:
     }
 
 
+def compute_class_weights(labels) -> torch.Tensor:
+    """Balanced (inverse-frequency) class weights, ordered by label index 0..len-1.
+
+    Uses scikit-learn's "balanced" heuristic: weight[c] = n_samples / (n_classes * count[c]).
+    Assumes every label in 0..len(LABEL_NAMES)-1 is present in `labels` (true for the full
+    train split). For possibly-incomplete subsets, call `resolve_class_weights`, which guards
+    the absent-class case.
+    """
+    classes = np.arange(len(LABEL_NAMES))
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=np.asarray(labels))
+    return torch.tensor(weights, dtype=torch.float)
+
+
+def resolve_class_weights(labels, use_class_weights: bool) -> torch.Tensor | None:
+    """Class weights to train with, or None for the standard loss.
+
+    Returns None when weighting is disabled, or when the (possibly subsetted) training
+    labels do not cover all classes: balanced weights are undefined for an absent class,
+    so we warn and fall back to the unweighted loss instead of crashing -- e.g. a small
+    ``--max_train_samples`` smoke run that drops the rare ``surprise`` class.
+    """
+    if not use_class_weights:
+        return None
+    if len({int(label) for label in labels}) < len(LABEL_NAMES):
+        print("Warning: training subset does not cover all classes; using the unweighted loss.")
+        return None
+    return compute_class_weights(labels)
+
+
+class WeightedLossTrainer(Trainer):
+    """Trainer that applies class weights in the cross-entropy loss.
+
+    `class_weights=None` reproduces the standard (unweighted) cross-entropy, which makes the
+    with/without class-weight ablation a single code path (ADR 0012).
+    """
+
+    def __init__(self, *args, class_weights: torch.Tensor | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        weight = None if self.class_weights is None else self.class_weights.to(outputs.logits.device)
+        loss = torch.nn.functional.cross_entropy(outputs.logits, labels, weight=weight)
+        return (loss, outputs) if return_outputs else loss
+
+
 def create_training_args(
     output_dir: str = DEFAULT_OUTPUT_DIR,
     num_train_epochs: int = 3,
@@ -136,6 +191,7 @@ def create_training_args(
     weight_decay: float = 0.01,
     fp16: bool = False,
     max_steps: int = -1,
+    seed: int = SEED,
 ) -> TrainingArguments:
     """
     Create TrainingArguments with recommended hyperparameters.
@@ -150,12 +206,14 @@ def create_training_args(
         weight_decay: Weight decay for regularization
         fp16: Enable fp16 mixed precision (GPU only)
         max_steps: Cap total optimizer steps (-1 = use epochs)
+        seed: Random seed for reproducibility
 
     Returns:
         Configured TrainingArguments
     """
     return TrainingArguments(
         output_dir=output_dir,
+        seed=seed,
         num_train_epochs=num_train_epochs,
         max_steps=max_steps,
         learning_rate=learning_rate,
@@ -182,27 +240,17 @@ def create_trainer(
     training_args: TrainingArguments,
     train_dataset: Dataset,
     eval_dataset: Dataset,
+    class_weights: torch.Tensor | None = None,
 ) -> Trainer:
-    """
-    Create a Trainer instance with the given configuration.
-
-    Args:
-        model: Pre-trained model
-        tokenizer: Tokenizer for the model
-        training_args: Training configuration
-        train_dataset: Tokenized training dataset
-        eval_dataset: Tokenized validation dataset
-
-    Returns:
-        Configured Trainer instance
-    """
-    return Trainer(
+    """Create a (weighted-loss) Trainer. class_weights=None gives the standard loss."""
+    return WeightedLossTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        class_weights=class_weights,
     )
 
 
@@ -216,6 +264,7 @@ def train(
     max_steps: int = -1,
     max_train_samples: int | None = None,
     max_eval_samples: int | None = None,
+    use_class_weights: bool = True,
 ) -> dict[str, float]:
     """
     Execute the full fine-tuning pipeline.
@@ -230,15 +279,17 @@ def train(
         max_steps: Cap total optimizer steps (-1 = use epochs)
         max_train_samples: Use at most N training examples (smoke tests)
         max_eval_samples: Use at most N validation examples (smoke tests)
+        use_class_weights: Compute and apply balanced class weights in the loss
 
     Returns:
         Dictionary with final evaluation metrics
     """
     print(f"Loading model and tokenizer: {MODEL_NAME}")
+    set_seed(SEED)
     tokenizer, model = load_tokenizer_and_model()
 
     print(f"Loading dataset: {DATASET_NAME}/{DATASET_CONFIG}")
-    dataset = load_tweet_eval_dataset()
+    dataset = load_emotion_dataset()
 
     raw_train = dataset["train"]
     raw_eval = dataset["validation"]
@@ -264,12 +315,17 @@ def train(
         max_steps=max_steps,
     )
 
+    class_weights = resolve_class_weights(raw_train["label"], use_class_weights)
+    if class_weights is not None:
+        print(f"Using balanced class weights: {class_weights.tolist()}")
+
     trainer = create_trainer(
         model=model,
         tokenizer=tokenizer,
         training_args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        class_weights=class_weights,
     )
 
     print("Starting training...")
@@ -295,7 +351,9 @@ def train(
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Fine-tune Twitter-RoBERTa on TweetEval sentiment dataset")
+    parser = argparse.ArgumentParser(
+        description="Fine-tune Twitter-RoBERTa for emotion classification on dair-ai/emotion"
+    )
     parser.add_argument(
         "--output_dir",
         type=str,
@@ -350,6 +408,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Use at most N validation examples (smoke tests)",
     )
+    parser.add_argument(
+        "--class-weights",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        dest="class_weights",
+        help="Apply balanced class weights in the loss (default: on; --no-class-weights for the ablation)",
+    )
     return parser.parse_args()
 
 
@@ -366,4 +431,5 @@ if __name__ == "__main__":
         max_steps=args.max_steps,
         max_train_samples=args.max_train_samples,
         max_eval_samples=args.max_eval_samples,
+        use_class_weights=args.class_weights,
     )

@@ -4,32 +4,32 @@
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-# tweet-sentiment-analysis — Twitter-tuned RoBERTa sentiment classification
+# tweet-sentiment-analysis — Twitter-tuned RoBERTa emotion classification
 
-> A domain-tuned RoBERTa pipeline that classifies tweets as negative, neutral, or positive — paired with a Rust preprocessing CLI measured at **42x** the Python throughput on 100K tweets.
+> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) using the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` — paired with a Rust preprocessing CLI measured at **42x** the Python throughput on 100K tweets.
 
 ---
 
 ## What It Does
 
-Classifies the sentiment of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
+Classifies the emotion of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
 
-- **3-class sentiment classification** — labels tweets as negative, neutral, or positive against the TweetEval benchmark.
+- **6-class emotion classification** — labels tweets as anger, fear, joy, love, sadness, or surprise on the `dair-ai/emotion` dataset.
 - **Tweet-aware text cleaning** — normalizes URLs, @mentions, hashtags, and emojis that break models trained on formal text.
 - **Scale preprocessing** — a Rust CLI cleans 1M+ tweet workloads in parallel, a parity-validated 28.5x faster than the Python reference at 1M tweets (up to 42x at 100K on a faster single machine).
-- **Reproducible baseline** — a zero-shot evaluation (70% accuracy, 0.71 macro F1) sets the bar the fine-tuning run aims to beat.
+- **Frozen-features baseline** — a frozen-backbone linear probe (67.5% accuracy, 0.584 macro F1) sets the bar the fine-tuning run aims to beat.
 
 ## What It Is
 
-`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces a sentiment classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It exists because generic sentiment models underperform on tweets — abbreviations, slang, mentions, hashtags, and emojis violate assumptions baked into models trained on formal corpora. The project fine-tunes `cardiffnlp/twitter-roberta-base-sentiment` on the TweetEval dataset and measures the gain over its zero-shot baseline on the shared TweetEval test split.
+`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces an emotion classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It fine-tunes `cardiffnlp/twitter-roberta-base` (task-agnostic backbone) on `dair-ai/emotion` and measures the gain over a frozen-features baseline. The project pivoted from a v1 sentiment build after fine-tuning on TweetEval overfit the already-tuned base model (regression tracked in #59).
 
 ## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
 | Language | Python 3.10+ · Rust 1.88+ |
-| ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment`) · PyTorch |
-| Data | TweetEval via HF `datasets` · scikit-learn · pandas |
+| ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base`) · PyTorch |
+| Data | dair-ai/emotion via HF `datasets` · scikit-learn · pandas |
 | Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` · `unicode-segmentation` |
 | Tooling / CI | Ruff · pytest · `cargo test` · GitHub Actions |
 
@@ -38,7 +38,7 @@ Classifies the sentiment of social-media text using a Twitter-specialized RoBERT
 ```mermaid
 flowchart LR
     subgraph Data
-        A[TweetEval Dataset<br/>45.6K train · 2K val · 12.3K test]
+        A[dair-ai/emotion<br/>16K train · 2K val · 2K test]
     end
 
     subgraph Preprocessing
@@ -51,7 +51,7 @@ flowchart LR
     end
 
     subgraph Model
-        D[twitter-roberta-base-sentiment<br/>CardiffNLP · 125M params]
+        D[twitter-roberta-base<br/>CardiffNLP · 125M params · task-agnostic]
     end
 
     subgraph Evaluation
@@ -63,7 +63,7 @@ flowchart LR
     C --> D --> E
 ```
 
-The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table. _The diagram above predates ADR 0009 and is refreshed in #35._
+The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table.
 
 ## Engineering Decisions
 
@@ -71,7 +71,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 
 | Decision | Rationale |
 | --- | --- |
-| Base model `twitter-roberta-base-sentiment` | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets |
+| Base model `twitter-roberta-base-sentiment` (v1 sentiment) | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets; amended by [ADR 0011](docs/adr/0011-emotion-task-pivot.md) for the emotion pivot |
 | `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md) — conservative margin over the 99th-percentile length |
 | Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md) — the class distribution is imbalanced |
 | URLs → `[URL]` token | [ADR 0004](docs/adr/0004-url-token-replacement.md) — keep the link signal, drop the noise |
@@ -81,17 +81,19 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 | CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
 | Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md) — one shared preprocessor matching the base model's input convention |
 | Mixed-precision training | [ADR 0010](docs/adr/0010-mixed-precision-training.md) — fp16 auto-on-CUDA to fit and speed up consumer-GPU fine-tuning |
+| Pivot to emotion + task-agnostic backbone | [ADR 0011](docs/adr/0011-emotion-task-pivot.md) — restore a real fine-tuning gain after #59 |
+| Balanced class weights (with ablation) | [ADR 0012](docs/adr/0012-balanced-class-weights.md) — mitigate the imbalanced surprise class |
 
 ## Results
 
-Both models are evaluated on the **full** TweetEval sentiment test split (12,284 rows), each fed the shared `preprocess_for_model` (ADR 0009) for a fair comparison. Reproduce with `notebooks/05_evaluation.ipynb`.
+Both models are evaluated on the **full** `dair-ai/emotion` test split (2,000 rows). Reproduce with `notebooks/06_emotion_evaluation.ipynb`.
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
-| **Zero-shot baseline** | **72.4%** | **0.724** |
-| Fine-tuned | 70.4% | 0.704 |
+| Frozen-features baseline | 67.5% | 0.584 |
+| **Fine-tuned** | **92.3%** | **0.887** |
 
-Fine-tuning did **not** beat the baseline — macro F1 fell **2.72%** (0.704 vs 0.724). The base model `cardiffnlp/twitter-roberta-base-sentiment` is already fine-tuned on TweetEval sentiment, so re-fine-tuning on the same data overfit: validation macro F1 rose to 0.808 while held-out test fell below the baseline. Per-class analysis (negative recall dropped the most, 78%→69%) and error hypotheses are in `notebooks/05_evaluation.ipynb`. Revisiting the recipe and premise is tracked in #59.
+Fine-tuning beat the frozen-features baseline by **+51.9% macro F1** (0.887 vs 0.584). Class-weight ablation contributed +0.010 macro F1 (0.887 with weights vs 0.877 without). Calibration ECE is 0.044. The rarest class (`surprise`, 3.57% of train) and other rare classes gain most from fine-tuning (love +0.43, fear +0.33, surprise +0.32 macro F1). v1 (3-class TweetEval sentiment) is frozen at tag `v1-sentiment`; its regression finding is #59.
 
 ## Getting Started
 
@@ -190,8 +192,12 @@ tweet-sentiment-analysis/
 - [x] Training module tests — 11 tests (config, metrics, constants, wiring)
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
-- [x] Fine-tuning run — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808
+- [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
 - [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
+- [x] Emotion-task pivot — 6-class emotion on dair-ai/emotion, task-agnostic backbone (#61)
+- [x] Frozen-features baseline
+- [x] Class-weight ablation
+- [x] Extended error analysis (notebook 06)
 
 ### Pending
 - [ ] Batch inference for 1M+ tweets
@@ -201,7 +207,7 @@ tweet-sentiment-analysis/
 
 ## Known Issues & Limitations
 
-- **Fine-tuned checkpoint is local, not versioned** — the fine-tuning run produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Project Status for its validation metrics. The full-set comparison is published in Results and reproducible via `notebooks/05_evaluation.ipynb`; the fine-tuned model underperforms the baseline (−2.72% macro F1) because the base is already TweetEval-tuned — revisiting the approach is tracked in #59.
+- **Fine-tuned checkpoint is local, not versioned** — the emotion fine-tune produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Results for the measured metrics (92.3% accuracy, 0.887 macro F1 vs the 0.584 frozen-features baseline). v1 (3-class TweetEval sentiment) is frozen at tag `v1-sentiment`; its regression is #59.
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
 - **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.

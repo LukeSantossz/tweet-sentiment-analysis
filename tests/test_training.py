@@ -1,6 +1,7 @@
 """Tests for the training module."""
 
 import sys
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -10,10 +11,14 @@ from src.training import (
     LABEL_NAMES,
     MAX_LENGTH,
     MODEL_NAME,
+    SEED,
+    WeightedLossTrainer,
+    compute_class_weights,
     compute_metrics,
     create_training_args,
     load_tokenizer_and_model,
     parse_args,
+    resolve_class_weights,
 )
 
 
@@ -79,6 +84,10 @@ def test_create_training_args_default_values():
     assert args.metric_for_best_model == "f1_macro"
 
 
+def test_create_training_args_sets_seed():
+    assert create_training_args().seed == SEED
+
+
 def test_create_training_args_custom_values():
     """Test TrainingArguments with custom values."""
     args = create_training_args(
@@ -95,9 +104,9 @@ def test_create_training_args_custom_values():
 
 
 def test_label_names_defined():
-    """Test that label names are correctly defined."""
-    assert LABEL_NAMES == ["negative", "neutral", "positive"]
-    assert len(LABEL_NAMES) == 3
+    """The six emotion labels are defined in integer-label order (0-5)."""
+    assert LABEL_NAMES == ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    assert len(LABEL_NAMES) == 6
 
 
 def test_max_length_value():
@@ -106,8 +115,8 @@ def test_max_length_value():
 
 
 def test_model_name_defined():
-    """Test that MODEL_NAME is correctly defined."""
-    assert MODEL_NAME == "cardiffnlp/twitter-roberta-base-sentiment"
+    """The backbone is the task-agnostic MLM base, not a task-tuned checkpoint."""
+    assert MODEL_NAME == "cardiffnlp/twitter-roberta-base"
 
 
 @pytest.mark.slow
@@ -117,7 +126,7 @@ def test_load_tokenizer_and_model():
 
     assert tokenizer is not None
     assert model is not None
-    assert model.config.num_labels == 3
+    assert model.config.num_labels == 6
 
 
 def test_training_uses_the_shared_preprocess_symbol():
@@ -181,3 +190,85 @@ def test_parse_args_accepts_fp16_and_smoke_flags(monkeypatch):
     assert args.max_steps == 5
     assert args.max_train_samples == 64
     assert args.max_eval_samples == 32
+
+
+def test_compute_class_weights_returns_one_weight_per_label():
+    weights = compute_class_weights([0, 1, 2, 3, 4, 5, 0, 1])
+    assert tuple(weights.shape) == (len(LABEL_NAMES),)
+
+
+def test_compute_class_weights_weights_rarer_class_higher():
+    # class 0 appears 5x, class 5 appears once -> class 5 must get a larger weight
+    labels = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5]
+    weights = compute_class_weights(labels)
+    assert weights[5] > weights[0]
+
+
+def test_compute_class_weights_matches_sklearn_balanced_on_known_counts():
+    from sklearn.utils.class_weight import compute_class_weight
+
+    labels = [0, 0, 0, 1, 1, 2, 2, 2, 2, 3, 4, 5]
+    expected = compute_class_weight(class_weight="balanced", classes=np.arange(len(LABEL_NAMES)), y=np.array(labels))
+    weights = compute_class_weights(labels)
+    assert np.allclose(weights.numpy(), expected)
+
+
+def _stub_model(logits):
+    """Minimal callable standing in for a HF model: ignores inputs, returns fixed logits."""
+
+    def _call(**inputs):
+        return SimpleNamespace(logits=logits)
+
+    return _call
+
+
+def test_weighted_loss_none_equals_standard_cross_entropy():
+    logits = torch.tensor([[2.0, 0.1, 0.1, 0.0, 0.0, 0.0], [0.1, 0.1, 0.1, 2.0, 0.0, 0.0]])
+    labels = torch.tensor([0, 3])
+    trainer = WeightedLossTrainer.__new__(WeightedLossTrainer)  # bypass heavy Trainer.__init__
+    trainer.class_weights = None
+
+    loss = trainer.compute_loss(
+        _stub_model(logits), {"input_ids": torch.zeros((2, 1), dtype=torch.long), "labels": labels}
+    )
+
+    assert torch.allclose(loss, torch.nn.functional.cross_entropy(logits, labels))
+
+
+def test_weighted_loss_applies_class_weights():
+    logits = torch.tensor([[2.0, 0.1, 0.1, 0.0, 0.0, 0.0], [0.1, 0.1, 0.1, 2.0, 0.0, 0.0]])
+    labels = torch.tensor([0, 3])
+    weights = torch.tensor([5.0, 1.0, 1.0, 2.0, 1.0, 3.0])
+    trainer = WeightedLossTrainer.__new__(WeightedLossTrainer)
+    trainer.class_weights = weights
+
+    loss = trainer.compute_loss(
+        _stub_model(logits), {"input_ids": torch.zeros((2, 1), dtype=torch.long), "labels": labels}
+    )
+
+    expected = torch.nn.functional.cross_entropy(logits, labels, weight=weights)
+    assert torch.allclose(loss, expected)
+
+
+def test_parse_args_class_weights_default_on_and_toggle(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["prog"])
+    assert parse_args().class_weights is True
+    monkeypatch.setattr(sys, "argv", ["prog", "--no-class-weights"])
+    assert parse_args().class_weights is False
+
+
+def test_resolve_class_weights_disabled_returns_none():
+    assert resolve_class_weights([0, 1, 2, 3, 4, 5], False) is None
+
+
+def test_resolve_class_weights_all_classes_present_returns_weights():
+    weights = resolve_class_weights([0, 1, 2, 3, 4, 5, 0, 1], True)
+    assert weights is not None
+    assert tuple(weights.shape) == (len(LABEL_NAMES),)
+
+
+def test_resolve_class_weights_missing_class_falls_back_to_none(capsys):
+    # 'surprise' (5) absent from the subset -> no crash, warn, fall back to the unweighted loss
+    result = resolve_class_weights([0, 1, 2, 3, 4, 0, 1], True)
+    assert result is None
+    assert "classes" in capsys.readouterr().out.lower()
