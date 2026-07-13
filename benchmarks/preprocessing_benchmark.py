@@ -23,7 +23,7 @@ from pathlib import Path
 
 # Add src/ to path for importing preprocessing
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from preprocessing import clean_tweet_text
+from preprocessing import preprocess_for_model
 
 # Fixed seed for reproducibility
 RANDOM_SEED = 42
@@ -67,9 +67,9 @@ def generate_synthetic_tweets(n: int, seed: int = RANDOM_SEED) -> list[str]:
 
 
 def benchmark_python(tweets: list[str]) -> tuple[list[str], float]:
-    """Benchmark Python preprocessing, return (results, elapsed_seconds)."""
+    """Benchmark Python preprocessing (model-input contract), return (results, elapsed_seconds)."""
     start = time.perf_counter()
-    results = [clean_tweet_text(t) for t in tweets]
+    results = [preprocess_for_model(t) for t in tweets]
     elapsed = time.perf_counter() - start
     return results, elapsed
 
