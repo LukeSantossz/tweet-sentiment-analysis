@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score
 from transformers import Trainer, TrainingArguments
 
-from .training import LABEL_NAMES, compute_metrics
+from .training import LABEL_NAMES, accuracy_and_macro_f1
 
 
 def macro_f1_pct_gain(baseline_f1: float, finetuned_f1: float) -> float:
@@ -27,13 +27,14 @@ def per_class_f1(y_true, y_pred) -> dict[str, float]:
 def evaluation_report(predictions, labels) -> dict:
     """Accuracy, macro F1, per-class F1, and confusion matrix from logits and labels.
 
-    Accuracy and macro F1 reuse `compute_metrics` so the reported metric matches the
-    one the model was selected by during training.
+    Accuracy and macro F1 reuse `accuracy_and_macro_f1` -- the same helper `compute_metrics`
+    uses -- so the reported metric matches the one the model was selected by during training,
+    and the argmax over the logits is computed once.
     """
     predictions = np.asarray(predictions)
     labels = np.asarray(labels)
-    metrics = compute_metrics((predictions, labels))
     preds = np.argmax(predictions, axis=1)
+    metrics = accuracy_and_macro_f1(preds, labels)
     class_labels = list(range(len(LABEL_NAMES)))
     return {
         "accuracy": metrics["accuracy"],

@@ -111,6 +111,18 @@ def tokenize_dataset(dataset: DatasetDict, tokenizer: PreTrainedTokenizerBase) -
     return tokenized
 
 
+def accuracy_and_macro_f1(preds, labels) -> dict[str, float]:
+    """Accuracy and macro F1 from already-argmaxed predictions.
+
+    Shared by `compute_metrics` (the Trainer callback) and
+    `evaluation.evaluation_report` so both compute the argmax exactly once.
+    """
+    return {
+        "accuracy": accuracy_score(labels, preds),
+        "f1_macro": f1_score(labels, preds, average="macro"),
+    }
+
+
 def compute_metrics(eval_pred: EvalPrediction) -> dict[str, float]:
     """
     Compute accuracy and macro F1-score for evaluation.
@@ -123,14 +135,7 @@ def compute_metrics(eval_pred: EvalPrediction) -> dict[str, float]:
     """
     predictions, labels = eval_pred
     preds = np.argmax(predictions, axis=1)
-
-    accuracy = accuracy_score(labels, preds)
-    f1_macro = f1_score(labels, preds, average="macro")
-
-    return {
-        "accuracy": accuracy,
-        "f1_macro": f1_macro,
-    }
+    return accuracy_and_macro_f1(preds, labels)
 
 
 def compute_class_weights(labels) -> torch.Tensor:
