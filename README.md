@@ -15,7 +15,7 @@
 Classifies the emotion of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
 
 - **6-class emotion classification** — labels tweets as anger, fear, joy, love, sadness, or surprise on the `dair-ai/emotion` dataset.
-- **Tweet-aware text cleaning** — normalizes URLs, @mentions, hashtags, and emojis that break models trained on formal text.
+- **Tweet-aware text normalization** — collapses @mentions and URLs to the model's training convention, preserving the case, hashtags, and emoji that carry emotion signal.
 - **Scale preprocessing** — a Rust CLI applies the model's input contract (`preprocess_for_model`) to 1M+ tweet workloads in parallel, parity-validated against the Python reference.
 - **Frozen-features baseline** — a frozen-backbone linear probe (67.5% accuracy, 0.584 macro F1) sets the bar the fine-tuning run aims to beat.
 

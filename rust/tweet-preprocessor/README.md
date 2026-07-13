@@ -71,7 +71,7 @@ Applies the model-input contract (`preprocess_for_model` in `src/preprocessing.p
 
 ### Example
 
-```
+```text
 Input:  "Check @john #AI is amazing 😊 https://example.com"
 Output: "Check @user #AI is amazing 😊 http"
 ```
