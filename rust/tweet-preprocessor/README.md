@@ -1,14 +1,13 @@
 # tweet-preprocessor
 
-High-performance tweet preprocessing CLI for sentiment analysis at scale.
+High-performance tweet preprocessing CLI — the model-input contract at scale.
 
 ## Overview
 
-This CLI tool preprocesses tweet text for downstream NLP tasks. It provides the same cleaning pipeline as the Python `src/preprocessing.py` module but with 10-20x better performance through:
+This CLI applies the **model-input preprocessing contract** (`preprocess_for_model`, ADR 0009) to tweet text at scale, so its output feeds the fine-tuned emotion model directly. It mirrors the Python `preprocess_for_model` and parallelizes across all CPU cores:
 
 - **Parallel processing** via Rayon (uses all CPU cores)
 - **Zero-copy I/O** via Polars
-- **Compiled regex patterns** via lazy statics
 
 ## Installation
 
@@ -64,57 +63,24 @@ null policy for scale-time processing.)
 
 ## Preprocessing Pipeline
 
-The pipeline mirrors `src/preprocessing.py` for common cases:
+Applies the model-input contract (`preprocess_for_model` in `src/preprocessing.py`, ADR 0009), token by token:
 
-1. **URLs** → `[URL]` token
-2. **Mentions** (`@user`) → `@user` (normalized)
-3. **Hashtags** → Remove `#`, keep text
-4. **Emojis** → `:emoji_name:` notation
-5. **Lowercase** → All text to lowercase
+1. **Mentions** — a token starting with `@` → `@user`
+2. **URLs** — a token starting with `http` → `http`
+3. **Everything else** — case, hashtags, and emoji are preserved
 
 ### Example
 
+```text
+Input:  "Check @john #AI is amazing 😊 https://example.com"
+Output: "Check @user #AI is amazing 😊 http"
 ```
-Input:  "Check @john's post! #AI is amazing 😊 https://example.com"
-Output: "check @user's post! ai is amazing :smiling_face_with_smiling_eyes: [url]"
-```
-
-### Known Divergences
-
-**Emoji handling:** The Rust implementation uses the `emojis` crate which processes emojis character-by-character, while Python's `emoji` library processes the full string. This may cause differences for:
-
-- Multi-codepoint emojis (e.g., 👨‍👩‍👧‍👦 family sequences)
-- Skin tone modifiers (e.g., 👍🏽)
-- Flag emojis (e.g., 🇧🇷)
-- ZWJ (Zero Width Joiner) sequences
-
-For sentiment analysis on typical tweet data, single-codepoint emojis (😊, 🔥, ❤️) are most common and produce identical output. The benchmark script validates parity on synthetic data.
 
 ## Benchmark
 
-See `benchmarks/preprocessing_benchmark.py` for comparative benchmarks.
+`benchmarks/preprocessing_benchmark.py` validates Python↔Rust output parity (both on the model-input contract) and reports throughput per dataset size.
 
-### Measured Performance
-
-Throughput is environment-dependent, so the **speedup factor** (the ratio) is the portable
-headline — and it grows with scale as the Rust startup overhead amortizes. Both runs validate
-identical Python/Rust output (parity) at every size.
-
-**Workstation — Windows 11** (single machine):
-
-| Dataset Size | Python | Rust | Speedup |
-|--------------|--------|------|---------|
-| 1,000 | 0.068s (14.8k/s) | 0.033s (30k/s) | **2.1x** |
-| 10,000 | 0.619s (16.2k/s) | 0.060s (166k/s) | **10.3x** |
-| 100,000 | 11.29s (8.9k/s) | 0.267s (374k/s) | **42.2x** |
-
-**Cloud — Linux, 4 vCPU (Intel Xeon @ 2.10 GHz)** · Python 3.11 · Rust 1.94.1 — scaled to 1M tweets with parity validation:
-
-| Dataset Size | Python | Rust | Speedup |
-|--------------|--------|------|---------|
-| 100,000 | 3.30s (30.3k/s) | 0.133s (754k/s) | **24.9x** |
-| 500,000 | 16.10s (31.1k/s) | 0.627s (798k/s) | **25.7x** |
-| 1,000,000 | 33.08s (30.2k/s) | 1.163s (860k/s) | **28.5x** |
+> The earlier 42x / 28.5x figures were measured on the heavier **bulk** cleaning contract this CLI no longer implements. The model-input contract is lightweight, and in the full pipeline the GPU inference step dominates wall-clock time; the Rust step is not re-benchmarked here (no invented numbers). Run the benchmark yourself for current figures.
 
 ### Run Benchmark
 

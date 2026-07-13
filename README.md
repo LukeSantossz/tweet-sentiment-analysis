@@ -6,7 +6,7 @@
 
 # tweet-sentiment-analysis — Twitter-tuned RoBERTa emotion classification
 
-> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) using the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` — paired with a Rust preprocessing CLI that is a parity-validated **28.5x** faster than the Python reference at 1M tweets (up to 42x at 100K).
+> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) — fine-tuning the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` to **0.887 macro F1** (+51.9% over the frozen-features baseline), with a Rust CLI that preprocesses 1M+ tweet workloads into the model's input contract in parallel.
 
 ---
 
@@ -15,8 +15,8 @@
 Classifies the emotion of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
 
 - **6-class emotion classification** — labels tweets as anger, fear, joy, love, sadness, or surprise on the `dair-ai/emotion` dataset.
-- **Tweet-aware text cleaning** — normalizes URLs, @mentions, hashtags, and emojis that break models trained on formal text.
-- **Scale preprocessing** — a Rust CLI cleans 1M+ tweet workloads in parallel, a parity-validated 28.5x faster than the Python reference at 1M tweets (up to 42x at 100K on a faster single machine).
+- **Tweet-aware text normalization** — collapses @mentions and URLs to the model's training convention, preserving the case, hashtags, and emoji that carry emotion signal.
+- **Scale preprocessing** — a Rust CLI applies the model's input contract (`preprocess_for_model`) to 1M+ tweet workloads in parallel, parity-validated against the Python reference.
 - **Frozen-features baseline** — a frozen-backbone linear probe (67.5% accuracy, 0.584 macro F1) sets the bar the fine-tuning run aims to beat.
 
 ## What It Is
@@ -30,7 +30,7 @@ Classifies the emotion of social-media text using a Twitter-specialized RoBERTa 
 | Language | Python 3.10+ · Rust 1.88+ |
 | ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base`) · PyTorch |
 | Data | dair-ai/emotion via HF `datasets` · scikit-learn · pandas |
-| Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` · `unicode-segmentation` |
+| Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` |
 | Tooling / CI | Ruff · pytest · `cargo test` · GitHub Actions |
 
 ## Architecture
@@ -63,7 +63,7 @@ flowchart LR
     C --> D --> E
 ```
 
-The model path (training and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The generic `clean_tweet_text` (`src/preprocessing.py`, used by tests and notebooks) and its `rust/tweet-preprocessor` port share a separate cleaning contract for large-volume data and Python/Rust parity. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md) for the CLI and its benchmark table.
+The model path (training, batch inference, and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The `rust/tweet-preprocessor` CLI applies that same contract at scale, parity-validated against the Python reference (see [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) and [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md)).
 
 ## Engineering Decisions
 
@@ -77,7 +77,7 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full ration
 | URLs → `[URL]` token | [ADR 0004](docs/adr/0004-url-token-replacement.md) — keep the link signal, drop the noise |
 | Emojis → `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md) — keep sentiment-bearing emoji as text |
 | Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md) — avoid overfitting a small train set |
-| Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parity-validated 28.5x at 1M tweets |
+| Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parallel scale preprocessing, amended for the model-input contract (emotion pivot) |
 | CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
 | Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md) — one shared preprocessor matching the base model's input convention |
 | Mixed-precision training | [ADR 0010](docs/adr/0010-mixed-precision-training.md) — fp16 auto-on-CUDA to fit and speed up consumer-GPU fine-tuning |
@@ -162,7 +162,7 @@ tweet-sentiment-analysis/
 ├── rust/
 │   └── tweet-preprocessor/         # High-throughput preprocessing CLI (Rayon + Polars)
 │       ├── src/main.rs             # Pipeline mirroring src/preprocessing.py
-│       ├── Cargo.toml              # clap · polars · rayon · unicode-segmentation
+│       ├── Cargo.toml              # clap · polars · rayon · indicatif
 │       └── README.md               # CLI usage and benchmark table
 ├── benchmarks/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
@@ -198,7 +198,7 @@ tweet-sentiment-analysis/
 - [x] Training script — Trainer API with early stopping and CLI args
 - [x] Training module tests — config, metrics, class weights, wiring
 - [x] CI pipeline — GitHub Actions with ruff + pytest
-- [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
+- [x] Rust preprocessing CLI — Rayon + Polars, model-input contract, 7 passing tests
 - [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
 - [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
 - [x] Emotion-task pivot — 6-class emotion on dair-ai/emotion, task-agnostic backbone (#61)
@@ -216,7 +216,6 @@ tweet-sentiment-analysis/
 
 - **Fine-tuned checkpoint is local, not versioned** — the emotion fine-tune produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Results for the measured metrics (92.3% accuracy, 0.887 macro F1 vs the 0.584 frozen-features baseline). v1 (3-class TweetEval sentiment) is frozen at tag `v1-sentiment`; its regression is #59.
 - **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
-- **Partial Rust/Python emoji parity** — multi-codepoint emojis (flags, skin tones, ZWJ family sequences) may diverge between the two implementations; single-codepoint emojis, which dominate real tweets, produce identical output. Mitigated via grapheme-cluster handling.
 - **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
 
 ## License

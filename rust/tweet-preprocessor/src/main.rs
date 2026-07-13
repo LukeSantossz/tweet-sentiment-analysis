@@ -2,15 +2,8 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use polars::prelude::*;
 use rayon::prelude::*;
-use regex::Regex;
 use std::path::PathBuf;
-use std::sync::LazyLock;
 use std::time::Instant;
-use unicode_segmentation::UnicodeSegmentation;
-
-static URL_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://\S+").unwrap());
-static MENTION_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@\w+").unwrap());
-static HASHTAG_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"#(\w+)").unwrap());
 
 #[derive(Parser, Debug)]
 #[command(name = "tweet-preprocessor")]
@@ -34,45 +27,23 @@ struct Args {
     threads: usize,
 }
 
-fn remove_urls(text: &str) -> String {
-    URL_PATTERN.replace_all(text, "[URL]").trim().to_string()
-}
-
-fn remove_mentions(text: &str) -> String {
-    MENTION_PATTERN.replace_all(text, "@user").to_string()
-}
-
-fn normalize_hashtags(text: &str) -> String {
-    HASHTAG_PATTERN.replace_all(text, "$1").to_string()
-}
-
-fn handle_emojis(text: &str) -> String {
-    let mut result = String::with_capacity(text.len() * 2);
-
-    // Use grapheme clusters to correctly handle multi-codepoint emojis
-    // (flags, skin tones, ZWJ sequences like family emojis)
-    for grapheme in text.graphemes(true) {
-        if let Some(emoji) = emojis::get(grapheme) {
-            result.push(':');
-            result.push_str(&emoji.name().replace(' ', "_"));
-            result.push(':');
-        } else {
-            result.push_str(grapheme);
-        }
-    }
-    result
-}
-
-fn to_lowercase(text: &str) -> String {
-    text.to_lowercase()
-}
-
-fn clean_tweet_text(text: &str) -> String {
-    let text = remove_urls(text);
-    let text = remove_mentions(&text);
-    let text = normalize_hashtags(&text);
-    let text = handle_emojis(&text);
-    to_lowercase(&text)
+/// Normalize text to the model-input contract (mirrors `preprocess_for_model` in
+/// `src/preprocessing.py`, ADR 0009): collapse `@mentions` to `@user` and URLs to `http`,
+/// while preserving case, hashtags, and emoji. This is the single contract the fine-tuned
+/// model was trained on; the bulk `clean_tweet_text` contract is intentionally not used here.
+fn preprocess_for_model(text: &str) -> String {
+    text.split(' ')
+        .map(|token| {
+            if token.starts_with('@') && token.chars().count() > 1 {
+                "@user".to_string()
+            } else if token.starts_with("http") {
+                "http".to_string()
+            } else {
+                token.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn process_tweets_parallel(texts: &[String], pb: &ProgressBar) -> Vec<String> {
@@ -80,7 +51,7 @@ fn process_tweets_parallel(texts: &[String], pb: &ProgressBar) -> Vec<String> {
         .par_iter()
         .map(|text| {
             pb.inc(1);
-            clean_tweet_text(text)
+            preprocess_for_model(text)
         })
         .collect()
 }
@@ -185,98 +156,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
 
+    // Model-input contract (ADR 0009). These mirror
+    // tests/test_preprocessing.py::test_preprocess_for_model_* byte-for-byte so the Rust and
+    // Python implementations stay in parity.
     #[test]
-    fn test_remove_urls() {
+    fn test_preprocess_for_model_normalizes_mentions_and_urls() {
         assert_eq!(
-            remove_urls("Here is the link https://site.com to see"),
-            "Here is the link [URL] to see"
+            preprocess_for_model("Hey @joao check http://x.co now"),
+            "Hey @user check http now"
         );
-        assert_eq!(remove_urls("https://site.com"), "[URL]");
     }
 
     #[test]
-    fn test_remove_mentions() {
+    fn test_preprocess_for_model_preserves_case_hashtags_emoji() {
         assert_eq!(
-            remove_mentions("Hey @joao, all good?"),
-            "Hey @user, all good?"
+            preprocess_for_model("I LOVE #Python 😊"),
+            "I LOVE #Python 😊"
         );
+    }
+
+    #[test]
+    fn test_preprocess_for_model_leaves_bare_at_symbol() {
+        assert_eq!(preprocess_for_model("email @ me"), "email @ me");
+    }
+
+    #[test]
+    fn test_preprocess_for_model_is_idempotent() {
+        let text = "Hey @user check http #NLP 🔥";
         assert_eq!(
-            remove_mentions("Happy new year @ana and @carlos!"),
-            "Happy new year @user and @user!"
+            preprocess_for_model(&preprocess_for_model(text)),
+            preprocess_for_model(text)
         );
-    }
-
-    #[test]
-    fn test_normalize_hashtags() {
-        assert_eq!(
-            normalize_hashtags("I love programming in #python"),
-            "I love programming in python"
-        );
-        assert_eq!(
-            normalize_hashtags("I love programming in #python3"),
-            "I love programming in python3"
-        );
-    }
-
-    #[test]
-    fn test_to_lowercase() {
-        assert_eq!(to_lowercase("Hello World"), "hello world");
-        // Unicode-aware lowercasing: non-ASCII letters must lowercase too.
-        assert_eq!(to_lowercase("CAFÉ"), "café");
-    }
-
-    #[test]
-    fn test_handle_emojis() {
-        let result = handle_emojis("I am happy 😊");
-        assert!(result.contains(":smiling_face_with_smiling_eyes:"));
-    }
-
-    #[test]
-    fn test_handle_emojis_multi_codepoint() {
-        // Test flag emoji (2 regional indicator symbols). The input has no literal
-        // "Brazil", so the assertion below only passes if the emoji was converted.
-        let result_flag = handle_emojis("Long live 🇧🇷!");
-        assert!(
-            result_flag.contains("Brazil") && result_flag.contains(":"),
-            "Flag should be converted to text: {}",
-            result_flag
-        );
-        // Verify the flag emoji itself is not in output
-        assert!(
-            !result_flag.contains("🇧🇷"),
-            "Flag emoji should be removed: {}",
-            result_flag
-        );
-
-        // Test skin tone modifier
-        let result_skin = handle_emojis("Thumbs up 👍🏻");
-        assert!(
-            !result_skin.contains("👍"),
-            "Skin tone emoji should be converted: {}",
-            result_skin
-        );
-
-        // Test ZWJ sequence (family emoji)
-        let result_family = handle_emojis("Family 👨‍👩‍👧");
-        assert!(
-            !result_family.contains("👨")
-                && !result_family.contains("👩")
-                && !result_family.contains("👧"),
-            "ZWJ family should be converted: {}",
-            result_family
-        );
-    }
-
-    #[test]
-    fn test_clean_tweet_text() {
-        let result = clean_tweet_text(
-            "Hey @joao, all good? I love programming in #python 😊 https://site.com",
-        );
-        assert!(result.contains("@user"));
-        assert!(result.contains("python"));
-        assert!(result.contains("[url]"));
-        assert!(result.contains(":smiling_face_with_smiling_eyes:"));
-        assert_eq!(result, result.to_lowercase());
     }
 
     fn temp_path(name: &str) -> std::path::PathBuf {

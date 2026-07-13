@@ -1,90 +1,82 @@
-# SPEC: feat(inference): batch inference script for 1M+ tweets on GPU
+# SPEC: feat(rust): switch the scale preprocessor to the model-input contract
 
-Issue: #28
+Issue: #72
 
 ## Problem
-There is no scale inference path: the fine-tuned emotion model can only be run inside
-notebooks at baseline scale, not over a 1M+ tweet Parquet with bounded memory and reported
-throughput.
+The Rust CLI cleans tweets with the bulk `clean_tweet_text` contract (lowercase,
+`emoji`→`:name:`, `[URL]`, strip `#`), which the fine-tuned emotion model never saw — it was
+trained on `preprocess_for_model` (ADR 0009). So the Rust output cannot feed the model without
+train/serving skew, and the bulk contract is legacy from the abandoned approach.
 
 ## Design Decision
-Add `src/batch_inference.py`: load the fine-tuned model+tokenizer once, stream the input
-Parquet in row chunks (pyarrow `iter_batches`), apply `preprocess_for_model` to the original
-text column, run batched GPU inference (`model.eval()` + `torch.no_grad()`), and stream
-predictions to an output Parquet (pyarrow `ParquetWriter`) — never holding the full dataset in
-memory. A tqdm bar tracks total rows; final throughput (tweets/sec, total time) is printed.
-
-Central correctness decision (corrects the issue's premise): the model path consumes the
-**original text** column + `preprocess_for_model` (ADR 0009), **not** the Rust CLI's
-`text_cleaned`. The two are different contracts — `clean_tweet_text` (Rust/bulk) lowercases,
-demojizes, and emits `[URL]`; `preprocess_for_model` only collapses `@user`/`http` and preserves
-case/emoji/hashtags. Feeding `text_cleaned` to the model would be train/serving skew. The Rust
-output still works as input because it preserves the original columns — batch inference reads the
-original text column and ignores `text_cleaned`.
+Replace the Rust cleaning pipeline with a faithful port of `preprocess_for_model`: split on
+spaces; map a token starting with `@` (length > 1) to `@user` and a token starting with `http`
+to `http`; leave everything else (case, hashtags, emoji) unchanged. Keep the `text_cleaned`
+output column. Remove the bulk-only functions (`remove_urls`/`remove_mentions`/
+`normalize_hashtags`/`handle_emojis`/`to_lowercase`/`clean_tweet_text`) and the dependencies that
+existed only for them (`regex`, `emojis`, `unicode-segmentation`).
 
 ## Alternatives Considered
-- **Consume Rust `text_cleaned` directly (rejected):** matches the issue's "Rust feeds cleaned
-  text to inference" wording, but produces model inputs unlike the training distribution
-  (ADR 0009) → degraded predictions. Correctness overrides convenience.
-- **Full-load with `pl.read_parquet` then one DataLoader (rejected):** simplest, but loads the
-  whole text column into memory, violating the bounded-memory constraint at 1M+.
-- **Emit label as integer id (rejected):** the AC's `label` column is more useful as the emotion
-  name; the integer is recoverable from `LABEL_NAMES`.
+- **Add a `--mode {bulk,model}` flag keeping both contracts (rejected):** the bulk contract is
+  legacy and unused now; the user chose to run only the model contract, so a flag adds surface
+  for no benefit.
+- **Keep the bulk contract (rejected):** its output cannot feed the model (skew, ADR 0009), and
+  it no longer serves any active path.
 
 ## Scope
 Includes:
-- `src/batch_inference.py` with CLI: `--input` (Parquet), `--output` (Parquet),
-  `--text-column` (default `text`), `--batch-size` (default 64), `--chunk-size` (default 10_000),
-  `--model` (default `outputs/finetuned-model`).
-- Streamed read (pyarrow `iter_batches`) → `preprocess_for_model` → tokenize (`MAX_LENGTH`) →
-  DataLoader batching (`batch_size`) → GPU forward under `eval()`/`no_grad()` → streamed write.
-- Output columns: `text_original` (str), `label` (emotion name), `score` (softmax max prob, float),
-  `processing_time_ms` (per-row inference time, float).
-- tqdm progress with ETA; final tweets/sec + total time printed.
-- Device auto-select (CUDA if available, else CPU); model+tokenizer loaded once; optional
-  `torch.cuda.empty_cache()` between chunks. Null text coerced to `""` (matches the Rust null policy).
-- Fast tests (no GPU/model): arg parsing + defaults; chunk reader preserves row count/order;
-  `preprocess_for_model` applied (model contract, not `text_cleaned`); output-record assembly
-  (label name, score, time) from given logits; throughput calc. One `@pytest.mark.slow`
-  end-to-end test on a tiny Parquet with the real checkpoint.
+- `rust/tweet-preprocessor/src/main.rs`: add `preprocess_for_model`; route
+  `process_tweets_parallel` through it; remove the bulk functions, their regex statics, and the
+  unused imports; replace the bulk `cargo` tests with model-contract tests that mirror
+  `tests/test_preprocessing.py::test_preprocess_for_model_*`; keep the null-policy tests.
+- `rust/tweet-preprocessor/Cargo.toml`: drop `regex`, `emojis`, `unicode-segmentation`.
+- `benchmarks/preprocessing_benchmark.py`: validate parity against `preprocess_for_model`
+  instead of `clean_tweet_text`.
+- `rust/tweet-preprocessor/README.md`: describe the model contract; remove the bulk pipeline
+  steps, the emoji "Known Divergences" section, and the bulk-era benchmark tables/speed claims
+  (not re-measured for the light model contract; no invented numbers).
+- `docs/adr/0007-rust-cli-for-scale.md`: amend — Rust now implements the model contract.
+- `README.md` (root): correct the now-false Rust-preprocessing statements the switch invalidates
+  — the bulk 42x/28.5x figures, `unicode-segmentation` in the stack, the `clean_tweet_text`-sharing
+  architecture sentence, and the stale Rust/Python emoji-parity limitation.
+- Close #65 (byte-exact emoji parity is moot without emoji processing).
 
 Does NOT include:
-- Any change to `WeightedLossTrainer`/`train()`/`evaluation.py`/the model.
-- Making the Rust CLI emit the model contract (#65 family) or REST serving (#36).
-- The README dual-path architecture write-up (#35, blocked on this).
-- A committed 1M dataset; throughput is demonstrated on synthetic/sampled input and reported by
-  the script.
-- A new ADR (the contract choice is already ADR 0009).
+- Removing the Python `clean_tweet_text` and its bulk helpers (still tested; a separate decision).
+- Any change to `src/batch_inference.py` (its `preprocess_for_model` is idempotent, so it works
+  on the Rust output).
+- The main `README.md` architecture **reframe** (new narrative, mermaid, highlights) — deferred to
+  the final README pass (#40); only the now-false statements above are corrected here.
+- Re-measuring throughput for the model contract (needs a built binary; deferred).
 
 ## Acceptance Criteria
-- `batch_inference` accepts `--input`/`--output` and writes a Parquet with `text_original`,
-  `label`, `score`, `processing_time_ms`, one row per input row, order preserved.
-- Batching is configurable (`--batch-size`, default 64); inference runs under `model.eval()` +
-  `torch.no_grad()`; model loaded exactly once.
-- Input is streamed in chunks; the full dataset is never loaded at once (verified by the
-  chunk-reader unit test on a multi-chunk Parquet).
-- Text is normalized with `preprocess_for_model` before tokenizing (unit test asserts the
-  model-contract transform, not `text_cleaned`).
-- Script prints tweets/sec and total time; a tqdm bar is shown.
-- `ruff check .` / `ruff format --check .` clean; `pytest -m "not slow"` green; the slow
-  end-to-end test passes on the local checkpoint.
+- `cargo test` green: the four model-contract cases (mentions/urls; case/hashtag/emoji preserved;
+  bare `@` unchanged; idempotent) plus the existing null policy (CSV/Parquet/extract).
+- The Rust model-contract cases mirror the Python `preprocess_for_model` fixtures (identical
+  input→expected pairs), pinning both implementations to one contract; each language's own tests
+  fail if that language drifts. Live cross-implementation parity is
+  `benchmarks/preprocessing_benchmark.py::validate_parity`, which requires the built binary and
+  is not run in CI (the `rust` and `test` jobs run each language separately).
+- `benchmarks/preprocessing_benchmark.py` compares Python `preprocess_for_model` to the Rust
+  `text_cleaned` column.
+- `rust/tweet-preprocessor/README.md` has no stale bulk/`[url]`/emoji or bulk-speed claims.
+- `docs/adr/0007` amended; `#65` closed with rationale.
+- `ruff check .` / `ruff format --check .` clean; `pytest -m "not slow"` green.
 
 ## Reproducibility
-- Fast: `.venv\Scripts\python.exe -m pytest tests/test_batch_inference.py -m "not slow" -q`.
-- Slow/GPU: write a small synthetic Parquet fixture, run
-  `python -m src.batch_inference --input <p> --output <o>`, assert schema/row count; observe
-  tweets/sec on the local GPU (RTX 3070).
-- Lint via `uvx ruff@0.15.17 check .` and `uvx ruff@0.15.17 format --check .`.
+- Rust: `cargo test` in the CI `rust` job (the binary is not buildable in this dev environment —
+  no local linker — so Rust red/green is observed in CI).
+- Python: `.venv\Scripts\python.exe -m pytest -m "not slow" -q`; `uvx ruff@0.15.17 check .` /
+  `format --check .`.
 
 ## Risks and Assumptions
-- Assumption: input Parquet has an original-text column (`--text-column`, default `text`);
-  Rust-produced Parquets satisfy this (original columns preserved). If absent, the script errors
-  clearly at startup (boundary validation).
-- Assumption: `--model` points at a complete checkpoint; `outputs/finetuned-model` exists locally
-  (gitignored) — the slow test uses it, so it is skipped where the checkpoint is absent (CI).
-- Assumption: `pyarrow` is available (a direct dependency of `datasets`); it is declared
-  explicitly in `requirements.txt` since this module uses it directly.
-- Risk: streamed pyarrow write + torch batching adds moderate complexity; mitigated by
-  unit-testing the reader/assembler in isolation from the GPU path.
-- The 1M headline is throughput-demonstrated, not committed as data; the honest figure is
-  whatever the local run reports.
+- Assumption: the Rust `text.split(' ')` + `starts_with` logic matches Python `str.split(" ")` +
+  `str.startswith` for the parity fixtures (empty tokens, consecutive spaces, bare `@`, `http`
+  prefix). Covered by mirrored tests.
+- Risk: no local Rust build — a compile error surfaces only in CI; mitigated by a minimal,
+  regex-free port and CI `cargo test`.
+- Risk: CI runs the `rust` (cargo) and `test` (pytest) jobs separately, so a *live* cross-language
+  parity check does not run in CI — it lives in `benchmarks/preprocessing_benchmark.py` (built
+  binary). The mirrored fixtures plus each language's own tests are the CI-level guard.
+- The Rust speed headline is intentionally dropped (the model contract is light and GPU inference
+  dominates); this is a deliberate refocus, recorded here and in the amended ADR 0007.
