@@ -1,4 +1,4 @@
-"""Evaluation utilities: compare the fine-tuned checkpoint against the zero-shot baseline.
+"""Evaluation utilities: compare the fine-tuned checkpoint against the frozen-features baseline.
 
 Pure metric helpers are unit-tested; the model forward pass (`predict_split`) is the
 single `@pytest.mark.slow` integration point. Both models are fed `preprocess_for_model`
