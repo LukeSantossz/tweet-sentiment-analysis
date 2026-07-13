@@ -21,3 +21,19 @@ Accepted.
   (`benchmarks/preprocessing_benchmark.py`).
 - The Rust CLI owns the scale-time null policy (null → empty string), which the Python
   reference does not define.
+
+## Amendment (2026-07-13, #72)
+
+The project pivoted to emotion classification, and the fine-tuned model consumes the model-input
+contract `preprocess_for_model` (ADR 0009), not the bulk `clean_tweet_text`. The Rust CLI now
+implements that **model-input contract** instead of the bulk one, so its output feeds the model
+without train/serving skew.
+
+- The parity oracle is now Python `preprocess_for_model`; the benchmark compares against it.
+- The bulk-only functions and the `regex` / `emojis` / `unicode-segmentation` dependencies were
+  removed — the model contract is a regex-free token pass (`@…`→`@user`, `http…`→`http`, rest
+  preserved).
+- The speedup figures above were measured on the heavier bulk contract and **no longer apply**;
+  the model contract is lightweight and, in the full pipeline, GPU inference dominates wall-clock
+  time. Rust is kept as the scale preprocessor, not as a throughput headline.
+- This makes #65 (byte-exact emoji parity) moot — the model contract does no emoji processing.
