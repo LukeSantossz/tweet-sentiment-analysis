@@ -8,6 +8,7 @@ streamed in row chunks (pyarrow ``iter_batches``) and predictions are streamed o
 
 import argparse
 import time
+from pathlib import Path
 
 import numpy as np
 import pyarrow as pa
@@ -42,14 +43,19 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _require_text_column(parquet_file: pq.ParquetFile, text_column: str) -> None:
+    """Raise a clear error when the input Parquet lacks the requested text column."""
+    if text_column not in parquet_file.schema_arrow.names:
+        raise ValueError(f"input Parquet has no '{text_column}' column; found {parquet_file.schema_arrow.names}")
+
+
 def iter_text_chunks(input_path: str, text_column: str, chunk_size: int):
     """Yield lists of original-text strings, streamed from the Parquet in row chunks.
 
     Null values are coerced to empty strings so the output stays row-aligned with the input.
     """
     parquet_file = pq.ParquetFile(input_path)
-    if text_column not in parquet_file.schema_arrow.names:
-        raise ValueError(f"input Parquet has no '{text_column}' column; found {parquet_file.schema_arrow.names}")
+    _require_text_column(parquet_file, text_column)
     for batch in parquet_file.iter_batches(batch_size=chunk_size, columns=[text_column]):
         values = batch.column(0).to_pylist()
         yield ["" if value is None else str(value) for value in values]
@@ -92,7 +98,12 @@ def run_batch_inference(
 
     Returns throughput metrics: number of rows, elapsed seconds, and tweets/second.
     """
-    total_rows = pq.ParquetFile(input_path).metadata.num_rows
+    if Path(input_path).resolve() == Path(output_path).resolve():
+        raise ValueError(f"--output must differ from --input ({input_path})")
+
+    parquet_file = pq.ParquetFile(input_path)
+    _require_text_column(parquet_file, text_column)
+    total_rows = parquet_file.metadata.num_rows
     if total_rows == 0:
         pq.write_table(_OUTPUT_SCHEMA.empty_table(), output_path)
         print("Processed 0 tweets (empty input)")
