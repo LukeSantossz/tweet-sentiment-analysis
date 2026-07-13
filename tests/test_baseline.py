@@ -33,6 +33,24 @@ def test_baseline_feeds_evaluation_report():
     assert 0.0 <= report["f1_macro"] <= 1.0
 
 
+def test_extract_features_empty_input_returns_zero_rows_by_hidden_size():
+    # Empty input must not reach np.vstack([]) (which raises); return a well-shaped (0, H) array.
+    from types import SimpleNamespace
+
+    from src.baseline import extract_features
+
+    class _StubModel:
+        def __init__(self, hidden_size):
+            self.config = SimpleNamespace(hidden_size=hidden_size)
+
+        def eval(self):
+            return self
+
+    features = extract_features([], tokenizer=None, model=_StubModel(768))
+
+    assert features.shape == (0, 768)
+
+
 def test_fit_baseline_requires_all_classes():
     # decision_function columns follow clf.classes_; a missing class would misalign the
     # fixed 0..5 schema downstream, so fit_baseline must fail fast.
@@ -57,3 +75,4 @@ def test_extract_features_shape_from_backbone():
 
     assert features.shape[0] == 2
     assert features.ndim == 2
+    assert features.shape[1] == model.config.hidden_size
