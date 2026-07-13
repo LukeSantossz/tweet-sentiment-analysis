@@ -6,7 +6,7 @@
 
 # tweet-sentiment-analysis — Twitter-tuned RoBERTa emotion classification
 
-> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) using the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` — paired with a Rust preprocessing CLI measured at **42x** the Python throughput on 100K tweets.
+> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) using the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` — paired with a Rust preprocessing CLI that is a parity-validated **28.5x** faster than the Python reference at 1M tweets (up to 42x at 100K).
 
 ---
 
@@ -155,8 +155,10 @@ cd rust/tweet-preprocessor && cargo test
 ```
 tweet-sentiment-analysis/
 ├── src/
-│   ├── preprocessing.py            # Python tweet cleaning pipeline (reference impl)
-│   └── training.py                 # Fine-tuning script — HuggingFace Trainer API
+│   ├── preprocessing.py            # Tweet cleaning: generic + model-aligned paths
+│   ├── training.py                 # Fine-tuning + metrics — HuggingFace Trainer API
+│   ├── baseline.py                 # Frozen-features baseline (backbone + LogisticRegression)
+│   └── evaluation.py               # Metric helpers + batched inference for comparison
 ├── rust/
 │   └── tweet-preprocessor/         # High-throughput preprocessing CLI (Rayon + Polars)
 │       ├── src/main.rs             # Pipeline mirroring src/preprocessing.py
@@ -165,13 +167,18 @@ tweet-sentiment-analysis/
 ├── benchmarks/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
 ├── tests/
-│   ├── test_preprocessing.py       # 16 unit tests for the preprocessing functions
-│   └── test_training.py            # 11 tests for the training module (config, metrics, wiring)
+│   ├── test_preprocessing.py       # Preprocessing unit tests
+│   ├── test_training.py            # Training config, metrics, class weights, wiring
+│   ├── test_evaluation.py          # Evaluation metric helpers
+│   ├── test_baseline.py            # Frozen-features baseline
+│   └── test_benchmark.py           # Benchmark parity helper
 ├── notebooks/
 │   ├── 01_eda.ipynb                # Class distribution, noise patterns
 │   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
-│   └── 03_inference_baseline.ipynb # Zero-shot baseline: 70% acc, 0.71 macro F1
-├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest)
+│   ├── 03_inference_baseline.ipynb # Zero-shot inference baseline exploration
+│   ├── 05_evaluation.ipynb         # v1 sentiment: fine-tuned vs baseline (tag-pinned history)
+│   └── 06_emotion_evaluation.ipynb # Emotion: fine-tuned vs frozen-features baseline
+├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest) + rust
 ├── .standards/                     # Development standards (my-framework submodule)
 ├── CLAUDE.md                       # Entry point binding the standards for AI-assisted work
 ├── pyproject.toml                  # Ruff and pytest configuration
@@ -187,9 +194,9 @@ tweet-sentiment-analysis/
 - [x] Exploratory data analysis — class imbalance and noise patterns mapped
 - [x] Python preprocessing pipeline — 6 cleaning functions + a model-aligned preprocessor, 16 passing tests
 - [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
-- [x] Zero-shot baseline — 70% accuracy, 0.71 macro F1
+- [x] Zero-shot baseline (v1 sentiment) — 70% accuracy, 0.71 macro F1
 - [x] Training script — Trainer API with early stopping and CLI args
-- [x] Training module tests — 11 tests (config, metrics, constants, wiring)
+- [x] Training module tests — config, metrics, class weights, wiring
 - [x] CI pipeline — GitHub Actions with ruff + pytest
 - [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
 - [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
