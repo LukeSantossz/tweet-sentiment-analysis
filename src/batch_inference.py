@@ -20,6 +20,15 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from .preprocessing import preprocess_for_model
 from .training import DEFAULT_OUTPUT_DIR, LABEL_NAMES, MAX_LENGTH
 
+_OUTPUT_SCHEMA = pa.schema(
+    [
+        pa.field("text_original", pa.string()),
+        pa.field("label", pa.string()),
+        pa.field("score", pa.float64()),
+        pa.field("processing_time_ms", pa.float64()),
+    ]
+)
+
 
 def parse_args(argv=None) -> argparse.Namespace:
     """Parse the batch-inference CLI arguments."""
@@ -83,12 +92,17 @@ def run_batch_inference(
 
     Returns throughput metrics: number of rows, elapsed seconds, and tweets/second.
     """
+    total_rows = pq.ParquetFile(input_path).metadata.num_rows
+    if total_rows == 0:
+        pq.write_table(_OUTPUT_SCHEMA.empty_table(), output_path)
+        print("Processed 0 tweets (empty input)")
+        return {"rows": 0, "seconds": 0.0, "tweets_per_second": 0.0}
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
     model = AutoModelForSequenceClassification.from_pretrained(model_dir).to(device)
     model.eval()
 
-    total_rows = pq.ParquetFile(input_path).metadata.num_rows
     writer = None
     processed = 0
     start = time.perf_counter()
@@ -119,10 +133,11 @@ def run_batch_inference(
                     "label": labels,
                     "score": scores,
                     "processing_time_ms": times_ms,
-                }
+                },
+                schema=_OUTPUT_SCHEMA,
             )
             if writer is None:
-                writer = pq.ParquetWriter(output_path, table.schema)
+                writer = pq.ParquetWriter(output_path, _OUTPUT_SCHEMA)
             writer.write_table(table)
             processed += len(chunk_texts)
             if device == "cuda":
