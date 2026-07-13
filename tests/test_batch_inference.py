@@ -1,5 +1,7 @@
 """Tests for the scale batch-inference script."""
 
+from pathlib import Path
+
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -10,9 +12,12 @@ from src.batch_inference import (
     iter_text_chunks,
     parse_args,
     preprocess_chunk,
+    run_batch_inference,
     throughput_per_second,
 )
-from src.training import LABEL_NAMES
+from src.training import DEFAULT_OUTPUT_DIR, LABEL_NAMES
+
+_CHECKPOINT_PRESENT = Path(DEFAULT_OUTPUT_DIR).is_dir()
 
 
 def _write_parquet(path, columns: dict):
@@ -112,11 +117,23 @@ def test_throughput_per_second():
     assert throughput_per_second(10, 0.0) == 0.0
 
 
-@pytest.mark.slow
-def test_batch_inference_end_to_end(tmp_path):
-    from src.batch_inference import run_batch_inference
-    from src.training import DEFAULT_OUTPUT_DIR
+def test_run_batch_inference_empty_input_writes_empty_output(tmp_path):
+    # Zero-row input must still produce a valid, correctly-typed empty Parquet (no model load).
+    in_path = tmp_path / "in.parquet"
+    out_path = tmp_path / "out.parquet"
+    _write_parquet(in_path, {"text": pa.array([], type=pa.string())})
 
+    metrics = run_batch_inference(str(in_path), str(out_path))
+
+    table = pq.read_table(out_path)
+    assert table.num_rows == 0
+    assert set(table.column_names) == {"text_original", "label", "score", "processing_time_ms"}
+    assert metrics["rows"] == 0
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _CHECKPOINT_PRESENT, reason="fine-tuned checkpoint (gitignored) not present")
+def test_batch_inference_end_to_end(tmp_path):
     texts = ["i am so happy today", "this is terrible and sad", "@x check http://y.co 😊"]
     in_path = tmp_path / "in.parquet"
     out_path = tmp_path / "out.parquet"
