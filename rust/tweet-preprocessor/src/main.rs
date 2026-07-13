@@ -185,6 +185,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
 
+    // Model-input contract (ADR 0009). These mirror
+    // tests/test_preprocessing.py::test_preprocess_for_model_* byte-for-byte so the Rust and
+    // Python implementations stay in parity.
+    #[test]
+    fn test_preprocess_for_model_normalizes_mentions_and_urls() {
+        assert_eq!(
+            preprocess_for_model("Hey @joao check http://x.co now"),
+            "Hey @user check http now"
+        );
+    }
+
+    #[test]
+    fn test_preprocess_for_model_preserves_case_hashtags_emoji() {
+        assert_eq!(preprocess_for_model("I LOVE #Python 😊"), "I LOVE #Python 😊");
+    }
+
+    #[test]
+    fn test_preprocess_for_model_leaves_bare_at_symbol() {
+        assert_eq!(preprocess_for_model("email @ me"), "email @ me");
+    }
+
+    #[test]
+    fn test_preprocess_for_model_is_idempotent() {
+        let text = "Hey @user check http #NLP 🔥";
+        assert_eq!(
+            preprocess_for_model(&preprocess_for_model(text)),
+            preprocess_for_model(text)
+        );
+    }
+
     #[test]
     fn test_remove_urls() {
         assert_eq!(
