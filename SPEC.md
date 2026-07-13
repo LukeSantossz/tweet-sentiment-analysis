@@ -1,4 +1,4 @@
-# SPEC (lite): feat(rust): switch the scale preprocessor to the model-input contract
+# SPEC: feat(rust): switch the scale preprocessor to the model-input contract
 
 Issue: #72
 
