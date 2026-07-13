@@ -69,6 +69,17 @@ def test_compute_metrics_returns_dict():
     assert "f1_macro" in result
 
 
+def test_compute_metrics_returns_only_accuracy_and_f1():
+    """The Trainer callback contract: exactly the two scalar metric keys, nothing else."""
+    predictions = np.array([[0.9, 0.05, 0.05], [0.05, 0.9, 0.05]])
+    labels = np.array([0, 1])
+
+    result = compute_metrics((predictions, labels))
+
+    assert set(result.keys()) == {"accuracy", "f1_macro"}
+    assert all(isinstance(value, float) for value in result.values())
+
+
 def test_create_training_args_default_values():
     """Test TrainingArguments with default values."""
     args = create_training_args()
