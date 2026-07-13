@@ -162,7 +162,7 @@ tweet-sentiment-analysis/
 ├── rust/
 │   └── tweet-preprocessor/         # High-throughput preprocessing CLI (Rayon + Polars)
 │       ├── src/main.rs             # Pipeline mirroring src/preprocessing.py
-│       ├── Cargo.toml              # clap · polars · rayon · unicode-segmentation
+│       ├── Cargo.toml              # clap · polars · rayon · indicatif
 │       └── README.md               # CLI usage and benchmark table
 ├── benchmarks/
 │   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
@@ -198,7 +198,7 @@ tweet-sentiment-analysis/
 - [x] Training script — Trainer API with early stopping and CLI args
 - [x] Training module tests — config, metrics, class weights, wiring
 - [x] CI pipeline — GitHub Actions with ruff + pytest
-- [x] Rust preprocessing CLI — Rayon + Polars, 7 passing tests, 42x speedup at 100K
+- [x] Rust preprocessing CLI — Rayon + Polars, model-input contract, 7 passing tests
 - [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
 - [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
 - [x] Emotion-task pivot — 6-class emotion on dair-ai/emotion, task-agnostic backbone (#61)
