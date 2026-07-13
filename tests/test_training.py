@@ -272,3 +272,48 @@ def test_resolve_class_weights_missing_class_falls_back_to_none(capsys):
     result = resolve_class_weights([0, 1, 2, 3, 4, 0, 1], True)
     assert result is None
     assert "classes" in capsys.readouterr().out.lower()
+
+
+def test_create_trainer_forwards_processing_class_and_wiring(monkeypatch):
+    """create_trainer must forward the tokenizer as processing_class, plus the rest of the
+    constructor wiring, to WeightedLossTrainer -- without instantiating the real (heavy) Trainer."""
+    from transformers import EarlyStoppingCallback
+
+    import src.training as training
+
+    captured = {}
+
+    class FakeTrainer:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(training, "WeightedLossTrainer", FakeTrainer)
+
+    model = object()
+    tokenizer = object()
+    training_args = object()
+    train_dataset = object()
+    eval_dataset = object()
+    class_weights = torch.tensor([1.0, 2.0, 1.0, 1.0, 1.0, 1.0])
+
+    training.create_trainer(
+        model=model,
+        tokenizer=tokenizer,
+        training_args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        class_weights=class_weights,
+    )
+
+    assert captured["model"] is model
+    assert captured["args"] is training_args
+    assert captured["train_dataset"] is train_dataset
+    assert captured["eval_dataset"] is eval_dataset
+    assert captured["compute_metrics"] is training.compute_metrics
+    assert captured["processing_class"] is tokenizer
+    assert captured["class_weights"] is class_weights
+
+    callbacks = captured["callbacks"]
+    assert len(callbacks) == 1
+    assert isinstance(callbacks[0], EarlyStoppingCallback)
+    assert callbacks[0].early_stopping_patience == 2
