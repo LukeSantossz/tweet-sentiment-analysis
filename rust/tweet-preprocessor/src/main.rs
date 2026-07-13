@@ -169,7 +169,10 @@ mod tests {
 
     #[test]
     fn test_preprocess_for_model_preserves_case_hashtags_emoji() {
-        assert_eq!(preprocess_for_model("I LOVE #Python 😊"), "I LOVE #Python 😊");
+        assert_eq!(
+            preprocess_for_model("I LOVE #Python 😊"),
+            "I LOVE #Python 😊"
+        );
     }
 
     #[test]
