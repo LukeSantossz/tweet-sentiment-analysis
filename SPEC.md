@@ -36,20 +36,27 @@ Includes:
   steps, the emoji "Known Divergences" section, and the bulk-era benchmark tables/speed claims
   (not re-measured for the light model contract; no invented numbers).
 - `docs/adr/0007-rust-cli-for-scale.md`: amend — Rust now implements the model contract.
+- `README.md` (root): correct the now-false Rust-preprocessing statements the switch invalidates
+  — the bulk 42x/28.5x figures, `unicode-segmentation` in the stack, the `clean_tweet_text`-sharing
+  architecture sentence, and the stale Rust/Python emoji-parity limitation.
 - Close #65 (byte-exact emoji parity is moot without emoji processing).
 
 Does NOT include:
 - Removing the Python `clean_tweet_text` and its bulk helpers (still tested; a separate decision).
 - Any change to `src/batch_inference.py` (its `preprocess_for_model` is idempotent, so it works
   on the Rust output).
-- The main `README.md` architecture/highlight reframe (deferred to the final README pass, #40).
+- The main `README.md` architecture **reframe** (new narrative, mermaid, highlights) — deferred to
+  the final README pass (#40); only the now-false statements above are corrected here.
 - Re-measuring throughput for the model contract (needs a built binary; deferred).
 
 ## Acceptance Criteria
 - `cargo test` green: the four model-contract cases (mentions/urls; case/hashtag/emoji preserved;
   bare `@` unchanged; idempotent) plus the existing null policy (CSV/Parquet/extract).
-- The Rust model-contract cases assert byte-identical outputs to the Python
-  `preprocess_for_model` fixtures (parity by shared fixtures).
+- The Rust model-contract cases mirror the Python `preprocess_for_model` fixtures (identical
+  input→expected pairs), pinning both implementations to one contract; each language's own tests
+  fail if that language drifts. Live cross-implementation parity is
+  `benchmarks/preprocessing_benchmark.py::validate_parity`, which requires the built binary and
+  is not run in CI (the `rust` and `test` jobs run each language separately).
 - `benchmarks/preprocessing_benchmark.py` compares Python `preprocess_for_model` to the Rust
   `text_cleaned` column.
 - `rust/tweet-preprocessor/README.md` has no stale bulk/`[url]`/emoji or bulk-speed claims.
@@ -68,5 +75,8 @@ Does NOT include:
   prefix). Covered by mirrored tests.
 - Risk: no local Rust build — a compile error surfaces only in CI; mitigated by a minimal,
   regex-free port and CI `cargo test`.
+- Risk: CI runs the `rust` (cargo) and `test` (pytest) jobs separately, so a *live* cross-language
+  parity check does not run in CI — it lives in `benchmarks/preprocessing_benchmark.py` (built
+  binary). The mirrored fixtures plus each language's own tests are the CI-level guard.
 - The Rust speed headline is intentionally dropped (the model contract is light and GPU inference
   dominates); this is a deliberate refocus, recorded here and in the amended ADR 0007.
