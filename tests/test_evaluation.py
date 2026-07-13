@@ -60,9 +60,10 @@ def test_evaluation_report_matches_sklearn_on_known_input():
 def test_divergent_classes_ranks_largest_shift_first():
     baseline = dict.fromkeys(EMOTIONS, 0.70)
     finetuned = {**baseline, "surprise": 0.30, "sadness": 0.72}
-    # |shift|: surprise 0.40, sadness 0.02, rest 0.0
+    # |shift|: surprise 0.40, sadness 0.02, rest 0.0 -> ranking is deterministic to 2nd place
     result = divergent_classes(baseline, finetuned)
     assert result[0] == "surprise"
+    assert result[1] == "sadness"
     assert set(result) == set(EMOTIONS)
 
 

@@ -90,32 +90,40 @@ def benchmark_rust(input_path: Path, output_path: Path, rust_bin: Path) -> tuple
     return elapsed, result.returncode == 0
 
 
-def validate_parity(python_results: list[str], rust_output_path: Path) -> tuple[bool, int]:
-    """Check if Python and Rust outputs match. Returns (all_match, mismatch_count)."""
+def validate_parity(python_results: list[str], rust_output_path: Path) -> tuple[bool, int | None]:
+    """Check if Python and Rust outputs match. Returns (all_match, mismatch_count).
+
+    mismatch_count is None when the Rust output could not be read (polars missing, or a
+    read/parse error) -- distinct from 0, which means a successful, fully-matching compare.
+    """
     try:
         import polars as pl
+    except ImportError as exc:
+        print(f"  polars not available, cannot validate parity: {exc}")
+        return False, None
 
+    try:
         df = pl.read_parquet(rust_output_path)
         rust_results = df["text_cleaned"].to_list()
+    except (OSError, pl.exceptions.PolarsError) as exc:
+        print(f"  Error reading Rust output: {exc}")
+        return False, None
 
-        # Validate row count first
-        if len(python_results) != len(rust_results):
-            print(f"  Row count mismatch: Python={len(python_results)}, Rust={len(rust_results)}")
-            return False, abs(len(python_results) - len(rust_results))
+    # Validate row count first
+    if len(python_results) != len(rust_results):
+        print(f"  Row count mismatch: Python={len(python_results)}, Rust={len(rust_results)}")
+        return False, abs(len(python_results) - len(rust_results))
 
-        mismatches = 0
-        for i, (py, rs) in enumerate(zip(python_results, rust_results)):
-            if py != rs:
-                mismatches += 1
-                if mismatches <= 3:  # Show first 3 mismatches
-                    print(f"  Mismatch at index {i}:")
-                    print(f"    Python: {py[:80]}...")
-                    print(f"    Rust:   {rs[:80]}...")
+    mismatches = 0
+    for i, (py, rs) in enumerate(zip(python_results, rust_results)):
+        if py != rs:
+            mismatches += 1
+            if mismatches <= 3:  # Show first 3 mismatches
+                print(f"  Mismatch at index {i}:")
+                print(f"    Python: {py[:80]}...")
+                print(f"    Rust:   {rs[:80]}...")
 
-        return mismatches == 0, mismatches
-    except Exception as e:
-        print(f"  Error reading Rust output: {e}")
-        return False, -1
+    return mismatches == 0, mismatches
 
 
 def find_rust_binary() -> Path | None:
@@ -213,6 +221,9 @@ def main():
                     print("  Parity: PASSED (outputs match)")
                     speedup = py_time / rust_time
                     print(f"  Speedup: {speedup:.1f}x")
+                elif mismatches is None:
+                    print("  Parity: ERROR (could not read Rust output)")
+                    print("  Speedup: N/A (parity check failed)")
                 else:
                     print(f"  Parity: FAILED ({mismatches} mismatches)")
                     print("  Speedup: N/A (parity check failed)")

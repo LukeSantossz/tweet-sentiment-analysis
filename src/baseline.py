@@ -18,6 +18,8 @@ from .training import LABEL_NAMES, MAX_LENGTH
 def extract_features(texts, tokenizer, model, batch_size: int = 32) -> np.ndarray:
     """Mean-pooled last-hidden-state embeddings from the frozen backbone."""
     model.eval()
+    if len(texts) == 0:
+        return np.empty((0, model.config.hidden_size), dtype=np.float32)
     batches = []
     with torch.no_grad():
         for start in range(0, len(texts), batch_size):
