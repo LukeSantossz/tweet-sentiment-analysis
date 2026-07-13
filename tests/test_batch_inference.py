@@ -131,6 +131,24 @@ def test_run_batch_inference_empty_input_writes_empty_output(tmp_path):
     assert metrics["rows"] == 0
 
 
+def test_run_batch_inference_rejects_output_equal_to_input(tmp_path):
+    path = tmp_path / "same.parquet"
+    _write_parquet(path, {"text": ["a"]})
+
+    with pytest.raises(ValueError, match="output"):
+        run_batch_inference(str(path), str(path))
+
+
+def test_run_batch_inference_empty_input_missing_column_raises(tmp_path):
+    # The column check must run before the zero-row fast path, not be bypassed by it.
+    in_path = tmp_path / "in.parquet"
+    out_path = tmp_path / "out.parquet"
+    _write_parquet(in_path, {"body": pa.array([], type=pa.string())})
+
+    with pytest.raises(ValueError, match="text"):
+        run_batch_inference(str(in_path), str(out_path))
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not _CHECKPOINT_PRESENT, reason="fine-tuned checkpoint (gitignored) not present")
 def test_batch_inference_end_to_end(tmp_path):
