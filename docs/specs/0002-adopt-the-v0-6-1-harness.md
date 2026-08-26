@@ -45,6 +45,12 @@ the spec that was approved for #72, kept as approved.
   regenerated from the submodule's instruction source; the root `SPEC.md` moved
   into `docs/specs/`; the pull-request template pointing at the durable archive;
   the R1, R2 and explain chains and the backends they name.
+- Also includes, out of the original scope and recorded here rather than done
+  quietly: the lint job installing the ruff `requirements.txt` pins. It is
+  specified in `docs/specs/0003`, and it lands here because the two cannot be
+  sequenced apart — the durable spec archive this change creates is where 0003
+  has to live, and this change cannot merge past a red pipeline it did not
+  break.
 - Does NOT include: `CONTEXT.md`, which is a domain glossary no shipped file can
   write for this project; an R3 chain, because no automated pull-request
   reviewer is wired here and naming one that does not run would read as a review
