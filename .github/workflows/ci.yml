@@ -14,7 +14,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - run: pip install ruff
+      # From the requirements file rather than unpinned: it already declares the
+      # version this repository lints with, and installing whatever is newest
+      # made the job fail on documents nobody had touched, whenever a release
+      # widened what the formatter reads.
+      - run: pip install -r requirements.txt
       - run: ruff check .
       - run: ruff format --check .
 

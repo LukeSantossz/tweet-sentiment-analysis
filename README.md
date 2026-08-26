@@ -180,6 +180,8 @@ tweet-sentiment-analysis/
 │   └── 06_emotion_evaluation.ipynb # Emotion: fine-tuned vs frozen-features baseline
 ├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest) + rust
 ├── .standards/                     # Development standards (my-framework submodule)
+├── docs/specs/                     # Durable spec archive, one file per approved change
+├── .framework.toml                 # Which standards the gates read, and the review chains
 ├── CLAUDE.md                       # Entry point binding the standards for AI-assisted work
 ├── pyproject.toml                  # Ruff and pytest configuration
 └── requirements.txt                # Python dependencies (runtime + ruff/pytest)

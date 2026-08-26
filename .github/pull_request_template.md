@@ -5,7 +5,7 @@
 
 - **Motivation:** <!-- reason for the change -->
 - **Task Link:** <!-- tracker URL, if any -->
-- **Spec Link:** <!-- link to the approved SPEC.md, if one exists for this change -->
+- **Spec Link:** <!-- link to the approved spec under docs/specs/, if one exists for this change -->
 
 ## 2. What Was Done
 
