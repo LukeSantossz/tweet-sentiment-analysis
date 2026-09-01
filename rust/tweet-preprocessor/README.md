@@ -78,14 +78,30 @@ Output: "Check @user #AI is amazing 😊 http"
 
 ## Benchmark
 
-`benchmarks/preprocessing_benchmark.py` validates Python↔Rust output parity (both on the model-input contract) and reports throughput per dataset size.
+`benchmarks/preprocessing_benchmark.py` runs this CLI and the Python reference as
+processes over the same input file, checks that their outputs match row for row, and
+reports the comparison. Because both sides are measured the same way, startup is
+charged to both.
 
-> The earlier 42x / 28.5x figures were measured on the heavier **bulk** cleaning contract this CLI no longer implements. The model-input contract is lightweight, and in the full pipeline the GPU inference step dominates wall-clock time; the Rust step is not re-benchmarked here (no invented numbers). Run the benchmark yourself for current figures.
+| Tweets | Python (s) | Rust (s) | Speedup | Parity |
+| --- | --- | --- | --- | --- |
+| 10,000 | 0.650 | 0.036 | 17.9x | OK |
+| 100,000 | 1.055 | 0.132 | 8.0x | OK |
+| 1,000,000 | 2.832 | 0.694 | 4.1x | OK |
+
+Median of 3 runs each, on Windows 11 with Python 3.14.3. One machine, so the trend
+matters more than the absolute numbers: the ratio falls as the input grows because
+Python's fixed interpreter and import cost is amortized away, leaving 4.1x at a
+million rows as the figure closest to the per-row difference.
+
+The earlier 42x and 28.5x figures were measured on the heavier bulk cleaning contract
+this CLI no longer implements, and do not apply. In the full pipeline, GPU inference
+dominates wall-clock time.
 
 ### Run Benchmark
 
 ```bash
-python benchmarks/preprocessing_benchmark.py --sizes 100000,500000,1000000
+python benchmarks/preprocessing_benchmark.py --sizes 10000,100000,1000000 --repeat 3
 ```
 
 ## Development
