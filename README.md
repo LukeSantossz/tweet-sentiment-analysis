@@ -1,5 +1,5 @@
 ![Python](https://img.shields.io/badge/Python-3.10%20to%203.13-blue?logo=python&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange?logo=rust&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-stable-orange?logo=rust&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -29,10 +29,10 @@ The project started as 3-class sentiment. Fine-tuning the already TweetEval-tune
 
 | Layer | Technology |
 | --- | --- |
-| Language | Python 3.10 to 3.13, Rust 1.88+ |
+| Language | Python 3.10 to 3.13, Rust (edition 2021) |
 | ML and inference | HuggingFace Transformers, RoBERTa (`cardiffnlp/twitter-roberta-base`), PyTorch |
 | Data | `dair-ai/emotion` via HuggingFace `datasets`, scikit-learn, pandas |
-| Scale preprocessing | Rust CLI: `clap`, `rayon`, `polars` |
+| Scale preprocessing | Rust CLI: `clap`, `rayon`, `polars`, `indicatif` |
 | Batch inference | PyArrow streamed Parquet reads and writes |
 | Tooling and CI | Ruff, pytest, `cargo test`, GitHub Actions |
 
@@ -64,8 +64,8 @@ Each row links the ADR under [`docs/adr/`](docs/adr/) holding the full rationale
 | Base model `twitter-roberta-base-sentiment` (v1 sentiment) | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md): domain-aligned, pre-trained on about 58M tweets. Amended by [ADR 0011](docs/adr/0011-emotion-task-pivot.md) for the emotion pivot |
 | `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md): conservative margin over the 99th-percentile length |
 | Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md): the class distribution is imbalanced |
-| URLs replaced by `[URL]` | [ADR 0004](docs/adr/0004-url-token-replacement.md): keep the link signal, drop the noise |
-| Emojis through `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md): keep sentiment-bearing emoji as text |
+| URLs replaced by `[URL]` | [ADR 0004](docs/adr/0004-url-token-replacement.md): keep the link signal, drop the noise. Scoped to `clean_tweet_text`, not the model path |
+| Emojis through `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md): keep sentiment-bearing emoji as text. Same scope as ADR 0004 |
 | Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md): avoid overfitting a small train set |
 | Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md): parallel preprocessing, amended for the model-input contract |
 | CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md): avoid a CUDA download the tests never use |
@@ -101,7 +101,7 @@ Also recorded in the same run:
 - **Python 3.10 to 3.13.** The pins in `requirements.txt` are the upper bound: `numpy==2.2.6` publishes no wheel for 3.14, so 3.14 would build it from source. CI runs 3.10.
 - **Internet access on the first run.** The backbone and the dataset are downloaded from Hugging Face on demand, roughly 1 GB of model weights plus a few MB of data, cached under `~/.cache/huggingface`. Both are public, so no account or token is needed.
 - **Optional: a CUDA GPU.** Only for a full fine-tune. Everything else runs on CPU.
-- **Optional: Rust 1.88 or newer** via [rustup](https://rustup.rs/), only to build the preprocessing CLI.
+- **Optional: a stable Rust toolchain** via [rustup](https://rustup.rs/), only to build the preprocessing CLI. The crate sets `edition = "2021"` and declares no `rust-version`, so there is no stated minimum; it builds and tests clean on 1.95.
 
 ### Installation
 
@@ -347,6 +347,7 @@ tweet-sentiment-analysis/
 - **Batch inference has never been run at million-row scale.** It streams in chunks so memory does not grow with the input, and that is what the tests cover; the throughput at that scale is unmeasured.
 - **Dependencies are pinned but not locked.** `requirements.txt` pins direct dependencies only, and the model revision is not pinned, so a future Hugging Face upload could shift results (issue #66).
 - **Python 3.14 is not covered.** `numpy==2.2.6` has no 3.14 wheel, so installing there compiles it from source.
+- **`clean_tweet_text` has no pipeline caller.** The generic cleaner (lowercase, `[URL]` tokens, demojized emoji) is exported and tested, but nothing on the training, evaluation or inference path calls it, and the Rust CLI moved off it too. It stays as a utility and as the subject of ADR 0004 and ADR 0005, both of which record that scope.
 
 ## Contributing
 

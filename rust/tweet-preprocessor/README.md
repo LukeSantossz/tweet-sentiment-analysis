@@ -13,7 +13,7 @@ This CLI applies the **model-input preprocessing contract** (`preprocess_for_mod
 
 ### Prerequisites
 
-- Rust toolchain (1.88+, latest stable recommended): https://rustup.rs/
+- A stable Rust toolchain: https://rustup.rs/. `Cargo.toml` sets `edition = "2021"` and declares no `rust-version`, so there is no stated minimum; it builds and tests clean on 1.95.
 
 ### Build
 
