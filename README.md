@@ -1,225 +1,363 @@
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10%20to%203.13-blue?logo=python&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange?logo=rust&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Transformers-orange?logo=huggingface&logoColor=white)
 ![CI](https://github.com/LukeSantossz/tweet-sentiment-analysis/actions/workflows/ci.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-# tweet-sentiment-analysis — Twitter-tuned RoBERTa emotion classification
+# tweet-sentiment-analysis: Twitter-tuned RoBERTa emotion classification
 
-> A domain-tuned RoBERTa pipeline that classifies tweets into six emotions (anger, fear, joy, love, sadness, surprise) — fine-tuning the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` to **0.887 macro F1** (+51.9% over the frozen-features baseline), with a Rust CLI that preprocesses 1M+ tweet workloads into the model's input contract in parallel.
-
----
+Fine-tunes the task-agnostic `cardiffnlp/twitter-roberta-base` backbone on `dair-ai/emotion` and measures it against a frozen-features baseline: **0.887 macro F1 against 0.584** on the full 2,000-row test split.
 
 ## What It Does
 
-Classifies the emotion of social-media text using a Twitter-specialized RoBERTa model, with a preprocessing path built to scale.
+Classifies short social-media text into six emotions, with the preprocessing, training, evaluation and batch-inference tooling around it.
 
-- **6-class emotion classification** — labels tweets as anger, fear, joy, love, sadness, or surprise on the `dair-ai/emotion` dataset.
-- **Tweet-aware text normalization** — collapses @mentions and URLs to the model's training convention, preserving the case, hashtags, and emoji that carry emotion signal.
-- **Scale preprocessing** — a Rust CLI applies the model's input contract (`preprocess_for_model`) to 1M+ tweet workloads in parallel, parity-validated against the Python reference.
-- **Frozen-features baseline** — a frozen-backbone linear probe (67.5% accuracy, 0.584 macro F1) sets the bar the fine-tuning run aims to beat.
+- **Six-class emotion classification.** Labels text as anger, fear, joy, love, sadness or surprise, trained on `dair-ai/emotion` (16k train, 2k validation, 2k test).
+- **One text-normalization contract.** `preprocess_for_model` collapses `@mentions` to `@user` and URLs to `http` while preserving case, hashtags and emoji. Training, evaluation and inference all call it, so the model never sees a text style it was not trained on.
+- **Fine-tuning CLI.** `python -m src.training` runs the HuggingFace Trainer API with balanced class weights, early stopping, and subset flags that turn the same script into a fast smoke run.
+- **Batch inference CLI.** `python -m src.batch_inference` streams a Parquet file in row chunks and writes predictions with a confidence score, so memory stays flat as the input grows.
+- **Parallel preprocessing in Rust.** `rust/tweet-preprocessor` applies the same contract across CPU cores. `benchmarks/preprocessing_benchmark.py` compares it to the Python reference and checks that both produce identical output.
+- **Frozen-features baseline.** `src/baseline.py` fits LogisticRegression on frozen backbone embeddings. It is the "before fine-tuning" reference the headline number is measured against.
 
 ## What It Is
 
-`tweet-sentiment-analysis` is a **research codebase / ML pipeline** that produces an emotion classifier and the tooling around it (preprocessing, training, evaluation, benchmarks). It fine-tunes `cardiffnlp/twitter-roberta-base` (task-agnostic backbone) on `dair-ai/emotion` and measures the gain over a frozen-features baseline. The project pivoted from a v1 sentiment build after fine-tuning on TweetEval overfit the already-tuned base model (regression tracked in #59).
+A research codebase and ML pipeline. It produces a fine-tuned emotion classifier plus the scripts that train, evaluate and apply it. It is not a service: there is no REST API, no UI and no container yet (issues #36, #37, #38).
+
+The project started as 3-class sentiment. Fine-tuning the already TweetEval-tuned `twitter-roberta-base-sentiment` on the same task regressed against its own baseline (issue #59), so the primary task moved to emotion on a task-agnostic backbone, where fine-tuning has something left to learn (ADR 0011). The v1 sentiment code is frozen at tag `v1-sentiment`.
 
 ## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
-| Language | Python 3.10+ · Rust 1.88+ |
-| ML / Inference | HuggingFace Transformers · RoBERTa (`cardiffnlp/twitter-roberta-base`) · PyTorch |
-| Data | dair-ai/emotion via HF `datasets` · scikit-learn · pandas |
-| Scale preprocessing | Rust CLI — `clap` · `rayon` · `polars` |
-| Tooling / CI | Ruff · pytest · `cargo test` · GitHub Actions |
+| Language | Python 3.10 to 3.13, Rust 1.88+ |
+| ML and inference | HuggingFace Transformers, RoBERTa (`cardiffnlp/twitter-roberta-base`), PyTorch |
+| Data | `dair-ai/emotion` via HuggingFace `datasets`, scikit-learn, pandas |
+| Scale preprocessing | Rust CLI: `clap`, `rayon`, `polars` |
+| Batch inference | PyArrow streamed Parquet reads and writes |
+| Tooling and CI | Ruff, pytest, `cargo test`, GitHub Actions |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Data
-        A[dair-ai/emotion<br/>16K train · 2K val · 2K test]
-    end
-
-    subgraph Preprocessing
-        B1[src/preprocessing.py<br/>Python reference impl]
-        B2[rust/tweet-preprocessor<br/>Rust CLI for scale<br/>parallel · Polars I/O]
-    end
-
-    subgraph Training
-        C[src/training.py<br/>HuggingFace Trainer API<br/>lr=2e-5 · 3 epochs · early stopping]
-    end
-
-    subgraph Model
-        D[twitter-roberta-base<br/>CardiffNLP · 125M params · task-agnostic]
-    end
-
-    subgraph Evaluation
-        E[Accuracy + Macro F1<br/>Confusion Matrix<br/>Per-class metrics]
-    end
-
-    A --> B1 --> C
-    A --> B2 --> C
-    C --> D --> E
+    A[dair-ai/emotion<br/>16k train, 2k val, 2k test] --> B[src/preprocessing.py<br/>preprocess_for_model]
+    B --> C[src/training.py<br/>Trainer API, class weights<br/>lr=2e-5, early stopping]
+    C --> D[outputs/finetuned-model<br/>fine-tuned checkpoint]
+    D --> E[src/evaluation.py<br/>accuracy, macro F1<br/>per-class, confusion matrix]
+    A --> I[src/baseline.py<br/>frozen features + LogisticRegression]
+    I --> E
+    G[raw tweets<br/>CSV or Parquet] --> H[rust/tweet-preprocessor<br/>same contract, parallel]
+    H --> J[Parquet + text_cleaned]
+    G --> F[src/batch_inference.py<br/>streamed prediction]
+    D --> F
+    F --> K[Parquet + label, score]
 ```
 
-The model path (training, batch inference, and the future serving API) normalizes text with `preprocess_for_model`, aligned to the base model's input convention (see [ADR 0009](docs/adr/0009-model-path-preprocessing.md)). The `rust/tweet-preprocessor` CLI applies that same contract at scale, parity-validated against the Python reference (see [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) and [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md)).
+Two things in this graph are not obvious. First, `preprocess_for_model` is the only normalization on the model path: the heavier `clean_tweet_text` (lowercasing, `[URL]` tokens, demojizing) exists for exploratory work and is deliberately kept off that path, because the backbone was pretrained on the lighter convention (ADR 0009). Second, the Rust CLI is not a faster copy of a different pipeline. It implements the same contract token for token, and the benchmark script fails if the two outputs diverge. It exists to normalize bulk text ahead of other consumers, while `batch_inference` normalizes its own input, so raw tweets can go straight into either one.
 
 ## Engineering Decisions
 
-Each row links the ADR under [`docs/adr/`](docs/adr/) that holds the full rationale — the decision, the alternative considered, and why this approach.
+Each row links the ADR under [`docs/adr/`](docs/adr/) holding the full rationale: the decision, the alternative considered, and why this approach.
 
 | Decision | Rationale |
 | --- | --- |
-| Base model `twitter-roberta-base-sentiment` (v1 sentiment) | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md) — domain-aligned, pre-trained on ~58M tweets; amended by [ADR 0011](docs/adr/0011-emotion-task-pivot.md) for the emotion pivot |
-| `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md) — conservative margin over the 99th-percentile length |
-| Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md) — the class distribution is imbalanced |
-| URLs → `[URL]` token | [ADR 0004](docs/adr/0004-url-token-replacement.md) — keep the link signal, drop the noise |
-| Emojis → `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md) — keep sentiment-bearing emoji as text |
-| Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md) — avoid overfitting a small train set |
-| Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md) — parallel scale preprocessing, amended for the model-input contract (emotion pivot) |
-| CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md) — avoid a ~2GB CUDA download |
-| Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md) — one shared preprocessor matching the base model's input convention |
-| Mixed-precision training | [ADR 0010](docs/adr/0010-mixed-precision-training.md) — fp16 auto-on-CUDA to fit and speed up consumer-GPU fine-tuning |
-| Pivot to emotion + task-agnostic backbone | [ADR 0011](docs/adr/0011-emotion-task-pivot.md) — restore a real fine-tuning gain after #59 |
-| Balanced class weights (with ablation) | [ADR 0012](docs/adr/0012-balanced-class-weights.md) — mitigate the imbalanced surprise class |
+| Base model `twitter-roberta-base-sentiment` (v1 sentiment) | [ADR 0001](docs/adr/0001-base-model-twitter-roberta.md): domain-aligned, pre-trained on about 58M tweets. Amended by [ADR 0011](docs/adr/0011-emotion-task-pivot.md) for the emotion pivot |
+| `max_length=128` tokens | [ADR 0002](docs/adr/0002-max-length-128.md): conservative margin over the 99th-percentile length |
+| Macro F1 as primary metric | [ADR 0003](docs/adr/0003-macro-f1-primary-metric.md): the class distribution is imbalanced |
+| URLs replaced by `[URL]` | [ADR 0004](docs/adr/0004-url-token-replacement.md): keep the link signal, drop the noise |
+| Emojis through `emoji.demojize()` | [ADR 0005](docs/adr/0005-emoji-demojize.md): keep sentiment-bearing emoji as text |
+| Early stopping `patience=2` | [ADR 0006](docs/adr/0006-early-stopping-patience.md): avoid overfitting a small train set |
+| Rust CLI for scale preprocessing | [ADR 0007](docs/adr/0007-rust-cli-for-scale.md): parallel preprocessing, amended for the model-input contract |
+| CPU-only PyTorch in CI | [ADR 0008](docs/adr/0008-cpu-only-pytorch-in-ci.md): avoid a CUDA download the tests never use |
+| Model-path preprocessing | [ADR 0009](docs/adr/0009-model-path-preprocessing.md): one shared preprocessor matching the base model's input convention |
+| Mixed-precision training | [ADR 0010](docs/adr/0010-mixed-precision-training.md): fp16 auto-enabled on CUDA to fit and speed up consumer-GPU fine-tuning |
+| Pivot to emotion on a task-agnostic backbone | [ADR 0011](docs/adr/0011-emotion-task-pivot.md): restore a real fine-tuning gain after issue #59 |
+| Balanced class weights, with ablation | [ADR 0012](docs/adr/0012-balanced-class-weights.md): mitigate the rare `surprise` class |
 
 ## Results
 
-Both models are evaluated on the **full** `dair-ai/emotion` test split (2,000 rows). Reproduce with `notebooks/06_emotion_evaluation.ipynb`.
+Both models were evaluated on the full `dair-ai/emotion` test split (2,000 rows).
 
 | Model | Accuracy | Macro F1 |
 | --- | --- | --- |
 | Frozen-features baseline | 67.5% | 0.584 |
-| **Fine-tuned** | **92.3%** | **0.887** |
+| **Fine-tuned, balanced class weights** | **92.3%** | **0.887** |
 
-Fine-tuning beat the frozen-features baseline by **+51.9% macro F1** (0.887 vs 0.584). Class-weight ablation contributed +0.010 macro F1 (0.887 with weights vs 0.877 without). Calibration ECE is 0.044. The rarest class (`surprise`, 3.57% of train) and other rare classes gain most from fine-tuning (love +0.43, fear +0.33, surprise +0.32 macro F1). v1 (3-class TweetEval sentiment) is frozen at tag `v1-sentiment`; its regression finding is #59.
+Also recorded in the same run:
+
+- Macro F1 gain over the baseline: +51.9%.
+- Class-weight ablation: 0.887 with weights against 0.877 without, so +0.010 macro F1.
+- Calibration: expected calibration error 0.044.
+- Largest per-class F1 gains: love +0.43, fear +0.33, surprise +0.32. The rare classes gain most.
+
+**Where these numbers come from.** They are the recorded output of [`notebooks/06_emotion_evaluation.ipynb`](notebooks/06_emotion_evaluation.ipynb), which writes each value into its own markdown cells and into `outputs/nb06_summary.json`. Notebook outputs are stripped before commit, so the markdown cells are the durable record. The run used an RTX 3070 with fp16, seed 42 (`SEED` in `src/training.py`).
+
+**Reproducing them is not a one-command job.** The fine-tuned checkpoint is gitignored, so the notebook retrains from scratch: it runs `train()` twice, once with class weights and once without for the ablation, then extracts frozen features for the baseline over the full train and test splits. That is two full fine-tuning runs, about 25 minutes each on an RTX 3070, plus the feature extraction. The next section describes what runs in minutes instead.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+ and pip
-- (Optional) CUDA 11.x+ for GPU-accelerated fine-tuning
-- (Optional) Rust 1.88+ (latest stable recommended) via [rustup](https://rustup.rs/) — only to build the scale preprocessing CLI
+- **Python 3.10 to 3.13.** The pins in `requirements.txt` are the upper bound: `numpy==2.2.6` publishes no wheel for 3.14, so 3.14 would build it from source. CI runs 3.10.
+- **Internet access on the first run.** The backbone and the dataset are downloaded from Hugging Face on demand, roughly 1 GB of model weights plus a few MB of data, cached under `~/.cache/huggingface`. Both are public, so no account or token is needed.
+- **Optional: a CUDA GPU.** Only for a full fine-tune. Everything else runs on CPU.
+- **Optional: Rust 1.88 or newer** via [rustup](https://rustup.rs/), only to build the preprocessing CLI.
 
 ### Installation
 
 ```bash
-git clone --recurse-submodules https://github.com/LukeSantossz/tweet-sentiment-analysis.git
+git clone https://github.com/LukeSantossz/tweet-sentiment-analysis.git
 cd tweet-sentiment-analysis
-# already cloned without --recurse-submodules? run: git submodule update --init
+```
 
+Create and activate a virtual environment. On Linux or macOS:
+
+```bash
 python -m venv venv
-source venv/bin/activate   # Linux / macOS
-venv\Scripts\activate      # Windows
+source venv/bin/activate
+```
 
+On Windows PowerShell:
+
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+```
+
+Then install:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### Running
+On a machine without a CUDA GPU, install the CPU-only PyTorch wheel first to avoid downloading the CUDA build. This is what CI does:
 
 ```bash
-# Fine-tuning script (requires GPU for a practical runtime)
+pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+```
+
+The `.standards/` submodule holds the development standards and the review gates. It is not needed to run, test or train anything here. Clone it only if you intend to contribute:
+
+```bash
+git submodule update --init
+```
+
+### Configuration
+
+There is nothing to configure. The project reads no environment variable and no `.env` file, and every path and hyperparameter has a default, overridable through the CLI flags in the [API Reference](#api-reference). Model and dataset names are constants in `src/training.py`.
+
+### Running
+
+Fastest way to see the project actually working, in order of cost:
+
+```bash
+# 1. Fast test suite. No network, no GPU. Under a minute.
+python -m pytest tests/ -m "not slow" -q
+
+# 2. Python preprocessing throughput on synthetic tweets. Add the Rust binary
+#    (see below) and drop --skip-rust to get the parity check and a speedup.
+python benchmarks/preprocessing_benchmark.py --sizes 1000 --skip-rust
+
+# 3. Smoke fine-tune: 64 training rows, one epoch, CPU.
+#    Proves the whole pipeline is wired. It downloads the backbone on the
+#    first run and takes about a minute of training after that. The metrics
+#    it reports are meaningless at this size, which is the point of a smoke run.
+python -m src.training --max_train_samples 64 --max_eval_samples 32 --epochs 1 --output_dir ./outputs/smoke-model
+
+# 4. Batch inference with the model step 3 just wrote. Build an input first.
+python -c "import pyarrow as pa, pyarrow.parquet as pq; pq.write_table(pa.table({'text': ['i am so happy today', 'this is terrible and sad', '@x check http://y.co']}), 'tweets.parquet')"
+python -m src.batch_inference --input tweets.parquet --output predictions.parquet --model ./outputs/smoke-model
+```
+
+Step 4 prints a throughput line and writes `predictions.parquet`. The labels it produces are noise, because the model from step 3 saw 64 rows. Point `--model` at a real fine-tune to get real predictions.
+
+The full fine-tune is the expensive one. It took about 25 minutes on an RTX 3070 with fp16. On CPU it was estimated at roughly 25 hours and was never run to completion:
+
+```bash
 python -m src.training
+```
 
-# Linter
-ruff check . && ruff format --check .
+The analysis notebooks run against the same code:
 
-# Analysis notebooks
+```bash
 jupyter notebook
 ```
 
-#### Rust preprocessing CLI (optional, for scale)
+#### Rust preprocessing CLI
+
+Takes any CSV or Parquet with a `text` column and writes a Parquet with a `text_cleaned` column added.
 
 ```bash
-# Build the release binary
-cd rust/tweet-preprocessor && cargo build --release
-
-# Clean a CSV/Parquet of tweets into cleaned Parquet
-./target/release/tweet-preprocessor -i data/tweets.csv -o data/tweets_clean.parquet
+cargo build --release --manifest-path rust/tweet-preprocessor/Cargo.toml
+printf 'text\n"Check @john #AI https://example.com"\n' > tweets.csv
+./rust/tweet-preprocessor/target/release/tweet-preprocessor -i tweets.csv -o tweets_clean.parquet
 ```
+
+The release profile enables LTO, so the first build takes several minutes. On Windows the binary is `tweet-preprocessor.exe`.
 
 ### Tests
 
 ```bash
-# Python tests (skips the slow, GPU/network-bound suite)
-pytest tests/ -m "not slow" -v
+# Python, excluding the tests that need a GPU, the network or a checkpoint
+python -m pytest tests/ -m "not slow" -q
 
-# Rust tests
-cd rust/tweet-preprocessor && cargo test
+# Rust
+cargo test --manifest-path rust/tweet-preprocessor/Cargo.toml
+
+# Lint and format, the same two commands CI runs
+python -m ruff check .
+python -m ruff format --check .
 ```
+
+That is 71 Python tests, 67 of which run in the fast suite, plus 7 Rust tests. On a machine without CUDA the fast suite reports one skip, an fp16 test that needs a GPU. The four excluded tests are marked `slow`: three download the backbone and run a forward pass, and one needs a fine-tuned checkpoint under `outputs/finetuned-model`, which is not in the repository. Run them with `python -m pytest tests/ -q`, and expect that last one to skip itself.
+
+## API Reference
+
+Three command-line surfaces, plus the Python package.
+
+### `python -m src.training`
+
+Fine-tunes the backbone and writes the best checkpoint.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--output_dir` | Where to save checkpoints | `./outputs/finetuned-model` |
+| `--epochs` | Number of training epochs | `3` |
+| `--learning_rate` | AdamW learning rate | `2e-5` |
+| `--train_batch_size` | Training batch size per device | `16` |
+| `--eval_batch_size` | Evaluation batch size per device | `32` |
+| `--fp16` / `--no-fp16` | Mixed precision | auto, on when CUDA is available |
+| `--max_steps` | Cap total optimizer steps, `-1` to use epochs | `-1` |
+| `--max_train_samples` | Use at most N training rows | all |
+| `--max_eval_samples` | Use at most N validation rows | all |
+| `--class-weights` / `--no-class-weights` | Balanced class weights in the loss | on |
+
+```bash
+python -m src.training --epochs 3 --output_dir ./outputs/finetuned-model
+```
+
+### `python -m src.batch_inference`
+
+Predicts emotions over a Parquet file, streaming both directions. Output columns: `text_original`, `label`, `score`, `processing_time_ms`. Prints rows, elapsed seconds and rows per second at the end.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--input` | Input Parquet with a text column (required) | |
+| `--output` | Output Parquet, must differ from the input (required) | |
+| `--text-column` | Name of the text column | `text` |
+| `--batch-size` | Inference batch size | `64` |
+| `--chunk-size` | Rows per streamed chunk | `10000` |
+| `--model` | Fine-tuned model directory | `./outputs/finetuned-model` |
+
+```bash
+python -m src.batch_inference --input tweets.parquet --output predictions.parquet
+```
+
+### `tweet-preprocessor` (Rust)
+
+Applies the model-input contract in parallel. Reads CSV or Parquet, writes Parquet with the input columns plus `text_cleaned`. Null text is treated as an empty string, so output stays row-aligned with input. See [`rust/tweet-preprocessor/README.md`](rust/tweet-preprocessor/README.md).
+
+| Flag | Short | Description | Default |
+| --- | --- | --- | --- |
+| `--input` | `-i` | Input file, CSV or Parquet (required) | |
+| `--output` | `-o` | Output Parquet (required) | |
+| `--text-column` | `-c` | Column holding the text | `text` |
+| `--threads` | `-j` | Thread count, `0` for auto | `0` |
+
+```bash
+./rust/tweet-preprocessor/target/release/tweet-preprocessor -i tweets.csv -o tweets_clean.parquet --threads 4
+```
+
+### `benchmarks/preprocessing_benchmark.py`
+
+Generates synthetic tweets from a fixed seed, times both implementations, and verifies their outputs match row by row. It refuses to report a speedup when parity fails.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--sizes` | Comma-separated dataset sizes | `1000,10000,100000` |
+| `--rust-bin` | Path to the Rust binary | auto-detected |
+| `--skip-rust` | Benchmark Python only | off |
+
+### Python package
+
+`src` re-exports the preprocessing functions without pulling in torch or transformers:
+
+```python
+from src import clean_tweet_text, preprocess_for_model
+
+preprocess_for_model("Check @john #AI 😊 https://example.com")
+# 'Check @user #AI 😊 http'
+```
+
+`src.training`, `src.evaluation`, `src.baseline` and `src.batch_inference` import the ML stack and are imported explicitly when needed.
 
 ## Project Structure
 
 ```
 tweet-sentiment-analysis/
 ├── src/
-│   ├── preprocessing.py            # Tweet cleaning: generic + model-aligned paths
-│   ├── training.py                 # Fine-tuning + metrics — HuggingFace Trainer API
-│   ├── baseline.py                 # Frozen-features baseline (backbone + LogisticRegression)
-│   └── evaluation.py               # Metric helpers + batched inference for comparison
-├── rust/
-│   └── tweet-preprocessor/         # High-throughput preprocessing CLI (Rayon + Polars)
-│       ├── src/main.rs             # Pipeline mirroring src/preprocessing.py
-│       ├── Cargo.toml              # clap · polars · rayon · indicatif
-│       └── README.md               # CLI usage and benchmark table
-├── benchmarks/
-│   └── preprocessing_benchmark.py  # Python vs Rust speedup, with parity check
-├── tests/
-│   ├── test_preprocessing.py       # Preprocessing unit tests
-│   ├── test_training.py            # Training config, metrics, class weights, wiring
-│   ├── test_evaluation.py          # Evaluation metric helpers
-│   ├── test_baseline.py            # Frozen-features baseline
-│   └── test_benchmark.py           # Benchmark parity helper
-├── notebooks/
-│   ├── 01_eda.ipynb                # Class distribution, noise patterns
-│   ├── 02_tokenization.ipynb       # Token length distribution, max_length validation
-│   ├── 03_inference_baseline.ipynb # Zero-shot inference baseline exploration
-│   ├── 05_evaluation.ipynb         # v1 sentiment: fine-tuned vs baseline (tag-pinned history)
-│   └── 06_emotion_evaluation.ipynb # Emotion: fine-tuned vs frozen-features baseline
-├── .github/workflows/ci.yml        # GitHub Actions: lint (ruff) + test (pytest) + rust
-├── .standards/                     # Development standards (my-framework submodule)
-├── docs/specs/                     # Durable spec archive, one file per approved change
-├── .framework.toml                 # Which standards the gates read, and the review chains
-├── CLAUDE.md                       # Entry point binding the standards for AI-assisted work
+│   ├── preprocessing.py            # Text cleaning: generic path and model-input contract
+│   ├── training.py                 # Fine-tuning, metrics, class weights, CLI
+│   ├── baseline.py                 # Frozen-features baseline
+│   ├── evaluation.py               # Metric helpers and batched prediction
+│   └── batch_inference.py          # Streamed Parquet inference CLI
+├── rust/tweet-preprocessor/        # Parallel preprocessing CLI (rayon + polars)
+├── benchmarks/                     # Python vs Rust throughput and parity check
+├── tests/                          # 71 pytest tests, one file per source module
+├── notebooks/                      # EDA, tokenization, evaluation, emotion comparison
+├── docs/adr/                       # Architecture decision records, indexed above
+├── docs/specs/                     # One approved spec per change
+├── .github/workflows/ci.yml        # Lint, Python tests, Rust tests
+├── .standards/                     # Development standards (git submodule, dev only)
 ├── pyproject.toml                  # Ruff and pytest configuration
-└── requirements.txt                # Python dependencies (runtime + ruff/pytest)
+└── requirements.txt                # Pinned Python dependencies
 ```
 
 ## Project Status
 
-**Status: in development**
+**In development.**
 
 ### Done
 
-- [x] Exploratory data analysis — class imbalance and noise patterns mapped
-- [x] Python preprocessing pipeline — 6 cleaning functions + a model-aligned preprocessor, 16 passing tests
-- [x] Tokenization analysis — `max_length=128` validated at the 99th percentile
-- [x] Zero-shot baseline (v1 sentiment) — 70% accuracy, 0.71 macro F1
-- [x] Training script — Trainer API with early stopping and CLI args
-- [x] Training module tests — config, metrics, class weights, wiring
-- [x] CI pipeline — GitHub Actions with ruff + pytest
-- [x] Rust preprocessing CLI — Rayon + Polars, model-input contract, 7 passing tests
-- [x] Fine-tuning run (v1 sentiment) — `python -m src.training` (GPU venv: Python 3.12, torch 2.12.1+cu130, RTX 3070); best checkpoint at epoch 2, validation accuracy 0.817 / macro F1 0.808 — superseded by the emotion pivot (#61)
-- [x] Comparative evaluation — baseline vs fine-tuned, per-class analysis (#27)
-- [x] Emotion-task pivot — 6-class emotion on dair-ai/emotion, task-agnostic backbone (#61)
-- [x] Frozen-features baseline
-- [x] Class-weight ablation
-- [x] Extended error analysis (notebook 06)
+- Exploratory data analysis: class imbalance and noise patterns mapped
+- Python preprocessing: 6 cleaning functions plus the model-input contract, 16 tests
+- Tokenization analysis: `max_length=128` validated at the 99th percentile
+- Training script: Trainer API, early stopping, class weights, CLI flags
+- Emotion-task pivot: 6-class on `dair-ai/emotion`, task-agnostic backbone (issue #61)
+- Fine-tuning run and comparative evaluation against the frozen-features baseline
+- Class-weight ablation and per-class error analysis (notebook 06)
+- Rust preprocessing CLI on the model-input contract, 7 tests
+- Batch inference over streamed Parquet, 12 tests (issue #28)
+- CI: ruff, pytest and cargo test on every push and pull request
 
 ### Pending
-- [ ] Batch inference for 1M+ tweets
-- [ ] Full Python-vs-Rust benchmark documented in this README
-- [ ] REST API (FastAPI) and demo UI (Gradio)
-- [ ] Docker containerization
+
+- Python vs Rust benchmark figures measured and published (the old numbers were measured on a preprocessing contract the CLI no longer implements, and were removed rather than restated)
+- REST API with FastAPI (issue #36) and demo UI (issue #37)
+- Docker packaging (issue #38)
+- Pinned model revision and a lockfile for full reproducibility (issue #66)
 
 ## Known Issues & Limitations
 
-- **Fine-tuned checkpoint is local, not versioned** — the emotion fine-tune produced a best checkpoint under `outputs/finetuned-model` (gitignored); see Results for the measured metrics (92.3% accuracy, 0.887 macro F1 vs the 0.584 frozen-features baseline). v1 (3-class TweetEval sentiment) is frozen at tag `v1-sentiment`; its regression is #59.
-- **Training is GPU-bound** — a CPU-only run was estimated at ~25h; the fine-tune was run on an RTX 3070 (fp16) in ~25 min.
-- **Rust CLI is CSV/Parquet only** — JSON I/O was dropped due to a Polars 0.46 API incompatibility.
+- **The fine-tuned checkpoint is not in the repository.** It lands in `outputs/finetuned-model`, which is gitignored, so the Results numbers cannot be reproduced without retraining. That needs a GPU. The values are recorded in notebook 06 instead.
+- **Training is GPU-bound.** About 25 minutes on an RTX 3070 with fp16. A CPU run was estimated at roughly 25 hours and abandoned; the `--max_train_samples` and `--max_steps` flags exist so the pipeline can still be exercised on CPU.
+- **No published throughput numbers.** The Rust CLI is faster than the Python loop, but the figures that were once published measured a heavier cleaning contract that this CLI no longer implements. Run `benchmarks/preprocessing_benchmark.py` for numbers on your own machine.
+- **The Rust CLI reads CSV and Parquet only.** JSON support was dropped over a Polars 0.46 API incompatibility.
+- **Batch inference has never been run at million-row scale.** It streams in chunks so memory does not grow with the input, and that is what the tests cover; the throughput at that scale is unmeasured.
+- **Dependencies are pinned but not locked.** `requirements.txt` pins direct dependencies only, and the model revision is not pinned, so a future Hugging Face upload could shift results (issue #66).
+- **Python 3.14 is not covered.** `numpy==2.2.6` has no 3.14 wheel, so installing there compiles it from source.
+
+## Contributing
+
+The repository follows the standards in the `.standards/` submodule. CI runs lint and both test suites. The standards gates (spec, commit vocabulary, records, generated instruction files) run from `.githooks/`, which need the `mf` binary and one local setting, `git config core.hooksPath .githooks`. Wiring them into CI is issue #79.
+
+1. Fork, then branch as `type/short-description` using the Conventional Commits type vocabulary.
+2. Write a spec under `docs/specs/` for anything non-trivial, before the code.
+3. Write the test first, then the implementation.
+4. Keep `python -m pytest tests/ -m "not slow"`, `python -m ruff check .` and `cargo test` green.
+5. Commit with Conventional Commits (`type(scope): imperative subject`), no AI attribution lines.
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
