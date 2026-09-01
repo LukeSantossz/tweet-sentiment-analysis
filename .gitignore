@@ -78,3 +78,9 @@ baseline/
 
 # Rust build artifacts
 **/target/
+
+# Scratch files the README walkthrough creates
+/tweets.csv
+/tweets.parquet
+/tweets_clean.parquet
+/predictions.parquet
