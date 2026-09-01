@@ -133,7 +133,7 @@ pip install -r requirements.txt
 On a machine without a CUDA GPU, install the CPU-only PyTorch wheel first to avoid downloading the CUDA build. This is what CI does:
 
 ```bash
-pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
 
