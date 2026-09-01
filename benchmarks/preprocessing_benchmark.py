@@ -1,19 +1,26 @@
 """
-Benchmark: Python vs Rust tweet preprocessing
+Benchmark: Python vs Rust tweet preprocessing.
 
 Usage:
-    python benchmarks/preprocessing_benchmark.py [--sizes 10000,100000] [--rust-bin path/to/binary]
+    python benchmarks/preprocessing_benchmark.py [--sizes 10000,100000] [--repeat 3]
 
-This script:
-1. Generates synthetic tweet data
-2. Benchmarks Python preprocessing (src/preprocessing.py)
-3. Benchmarks Rust preprocessing (rust/tweet-preprocessor)
-4. Validates output parity
-5. Reports throughput comparison
+Both implementations are invoked the same way: as a process, over the same input
+file, writing a Parquet with a `text_cleaned` column. Interpreter and binary startup
+therefore land on both sides, and the ratio compares the implementations rather than
+the measurement methods. Parity is checked between the two output files, and no
+speedup is reported when it fails.
+
+The script:
+1. Generates synthetic tweet data from a fixed seed
+2. Times benchmarks/python_preprocessor.py, repeated, median reported
+3. Times rust/tweet-preprocessor, the same way
+4. Validates that the two outputs match row for row
+5. Reports the comparison
 """
 
 import argparse
 import csv
+import platform
 import random
 import subprocess
 import sys
@@ -21,12 +28,10 @@ import tempfile
 import time
 from pathlib import Path
 
-# Add src/ to path for importing preprocessing
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from preprocessing import preprocess_for_model
-
 # Fixed seed for reproducibility
 RANDOM_SEED = 42
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Sample data for generating synthetic tweets
 SAMPLE_TEXTS = [
@@ -66,35 +71,63 @@ def generate_synthetic_tweets(n: int, seed: int = RANDOM_SEED) -> list[str]:
     return tweets
 
 
-def benchmark_python(tweets: list[str]) -> tuple[list[str], float]:
-    """Benchmark Python preprocessing (model-input contract), return (results, elapsed_seconds)."""
-    start = time.perf_counter()
-    results = [preprocess_for_model(t) for t in tweets]
-    elapsed = time.perf_counter() - start
-    return results, elapsed
+def write_input_csv(tweets: list[str], path: Path) -> None:
+    """Write the synthetic tweets as a one-column CSV both implementations read."""
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["text"])
+        for tweet in tweets:
+            writer.writerow([tweet])
 
 
-def benchmark_rust(input_path: Path, output_path: Path, rust_bin: Path) -> tuple[float, bool]:
-    """Benchmark Rust preprocessing, return (elapsed_seconds, success)."""
-    if not rust_bin.exists():
-        return 0.0, False
+def median_of(values: list[float]) -> float:
+    """Median of the measurements; the middle pair is averaged for an even count.
 
-    start = time.perf_counter()
-    result = subprocess.run(
-        [str(rust_bin), "-i", str(input_path), "-o", str(output_path)],
-        capture_output=True,
-        text=True,
-    )
-    elapsed = time.perf_counter() - start
-
-    return elapsed, result.returncode == 0
+    The median rather than the minimum or the mean: a desktop under other load produces
+    occasional slow runs, and the median ignores them without discarding the run entirely
+    the way a minimum does.
+    """
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2
 
 
-def validate_parity(python_results: list[str], rust_output_path: Path) -> tuple[bool, int | None]:
-    """Check if Python and Rust outputs match. Returns (all_match, mismatch_count).
+def time_process(command: list[str], repeat: int) -> tuple[float | None, list[float]]:
+    """Run `command` `repeat` times, returning (median seconds, all timings).
 
-    mismatch_count is None when the Rust output could not be read (polars missing, or a
-    read/parse error) -- distinct from 0, which means a successful, fully-matching compare.
+    Returns (None, []) when any invocation fails, so a broken run is never reported as
+    a fast one.
+    """
+    timings = []
+    for _ in range(repeat):
+        start = time.perf_counter()
+        result = subprocess.run(command, capture_output=True, text=True)
+        elapsed = time.perf_counter() - start
+        if result.returncode != 0:
+            print(f"  command failed: {' '.join(command)}")
+            print(f"  {result.stderr.strip()[:400]}")
+            return None, []
+        timings.append(elapsed)
+    return median_of(timings), timings
+
+
+def python_command(input_path: Path, output_path: Path) -> list[str]:
+    """The Python side, invoked as a process so its startup is charged too."""
+    return [sys.executable, "-m", "benchmarks.python_preprocessor", "-i", str(input_path), "-o", str(output_path)]
+
+
+def rust_command(rust_bin: Path, input_path: Path, output_path: Path) -> list[str]:
+    """The Rust side, invoked with the same input and output contract."""
+    return [str(rust_bin), "-i", str(input_path), "-o", str(output_path)]
+
+
+def validate_parity(python_output: Path, rust_output: Path) -> tuple[bool, int | None]:
+    """Compare the `text_cleaned` column of two Parquet outputs.
+
+    Returns (all_match, mismatch_count). mismatch_count is None when either output could
+    not be read, which is distinct from 0, meaning a successful, fully-matching compare.
     """
     try:
         import polars as pl
@@ -103,25 +136,24 @@ def validate_parity(python_results: list[str], rust_output_path: Path) -> tuple[
         return False, None
 
     try:
-        df = pl.read_parquet(rust_output_path)
-        rust_results = df["text_cleaned"].to_list()
+        python_rows = pl.read_parquet(python_output)["text_cleaned"].to_list()
+        rust_rows = pl.read_parquet(rust_output)["text_cleaned"].to_list()
     except (OSError, pl.exceptions.PolarsError) as exc:
-        print(f"  Error reading Rust output: {exc}")
+        print(f"  Error reading an output: {exc}")
         return False, None
 
-    # Validate row count first
-    if len(python_results) != len(rust_results):
-        print(f"  Row count mismatch: Python={len(python_results)}, Rust={len(rust_results)}")
-        return False, abs(len(python_results) - len(rust_results))
+    if len(python_rows) != len(rust_rows):
+        print(f"  Row count mismatch: Python={len(python_rows)}, Rust={len(rust_rows)}")
+        return False, abs(len(python_rows) - len(rust_rows))
 
     mismatches = 0
-    for i, (py, rs) in enumerate(zip(python_results, rust_results)):
-        if py != rs:
+    for index, (left, right) in enumerate(zip(python_rows, rust_rows)):
+        if left != right:
             mismatches += 1
             if mismatches <= 3:  # Show first 3 mismatches
-                print(f"  Mismatch at index {i}:")
-                print(f"    Python: {py[:80]}...")
-                print(f"    Rust:   {rs[:80]}...")
+                print(f"  Mismatch at index {index}:")
+                print(f"    Python: {left[:80]}")
+                print(f"    Rust:   {right[:80]}")
 
     return mismatches == 0, mismatches
 
@@ -129,15 +161,82 @@ def validate_parity(python_results: list[str], rust_output_path: Path) -> tuple[
 def find_rust_binary() -> Path | None:
     """Find the Rust binary in common locations."""
     candidates = [
-        Path("rust/tweet-preprocessor/target/release/tweet-preprocessor.exe"),
-        Path("rust/tweet-preprocessor/target/release/tweet-preprocessor"),
-        Path("rust/tweet-preprocessor/target/debug/tweet-preprocessor.exe"),
-        Path("rust/tweet-preprocessor/target/debug/tweet-preprocessor"),
+        REPO_ROOT / "rust/tweet-preprocessor/target/release/tweet-preprocessor.exe",
+        REPO_ROOT / "rust/tweet-preprocessor/target/release/tweet-preprocessor",
+        REPO_ROOT / "rust/tweet-preprocessor/target/debug/tweet-preprocessor.exe",
+        REPO_ROOT / "rust/tweet-preprocessor/target/debug/tweet-preprocessor",
     ]
-    for p in candidates:
-        if p.exists():
-            return p
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
     return None
+
+
+def benchmark_size(size: int, rust_bin: Path | None, repeat: int, skip_rust: bool) -> dict:
+    """Run both implementations over `size` synthetic tweets and compare them."""
+    print(f"\n{'-' * 64}")
+    print(f"Dataset size: {size:,} tweets, {repeat} run(s) each, median reported")
+    print("-" * 64)
+
+    with tempfile.TemporaryDirectory() as workspace:
+        work = Path(workspace)
+        source = work / "input.csv"
+        python_output = work / "python.parquet"
+        rust_output = work / "rust.parquet"
+
+        print("Generating synthetic data...")
+        write_input_csv(generate_synthetic_tweets(size), source)
+
+        print("Running Python...")
+        python_time, _ = time_process(python_command(source, python_output), repeat)
+        if python_time is not None:
+            print(f"  Python: {python_time:.3f}s ({size / python_time:,.0f} tweets/sec)")
+
+        rust_time = None
+        parity = None
+        if not skip_rust and rust_bin is not None:
+            print("Running Rust...")
+            rust_time, _ = time_process(rust_command(rust_bin, source, rust_output), repeat)
+            if rust_time is not None:
+                print(f"  Rust:   {rust_time:.3f}s ({size / rust_time:,.0f} tweets/sec)")
+
+        if python_time is not None and rust_time is not None:
+            print("Validating output parity...")
+            parity, mismatches = validate_parity(python_output, rust_output)
+            if parity:
+                print("  Parity: PASSED (outputs match)")
+                print(f"  Speedup: {python_time / rust_time:.1f}x")
+            elif mismatches is None:
+                print("  Parity: ERROR (could not read an output)")
+                print("  Speedup: N/A (parity check failed)")
+            else:
+                print(f"  Parity: FAILED ({mismatches} mismatches)")
+                print("  Speedup: N/A (parity check failed)")
+
+    return {"size": size, "python_time": python_time, "rust_time": rust_time, "parity": parity}
+
+
+def print_summary(results: list[dict], repeat: int) -> None:
+    """Print the comparison table, leaving the speedup blank wherever parity did not hold."""
+    print("\n" + "=" * 64)
+    print("SUMMARY")
+    print("=" * 64)
+    print(f"Platform: {platform.platform()}, Python {platform.python_version()}")
+    print(f"Each figure is the median of {repeat} run(s) of the whole process.\n")
+    print(f"{'Size':>12} {'Python (s)':>12} {'Rust (s)':>12} {'Speedup':>10} {'Parity':>8}")
+    print("-" * 64)
+
+    for result in results:
+        python_str = f"{result['python_time']:.3f}" if result["python_time"] else "N/A"
+        rust_str = f"{result['rust_time']:.3f}" if result["rust_time"] else "N/A"
+        if result["python_time"] and result["rust_time"] and result["parity"]:
+            speedup_str = f"{result['python_time'] / result['rust_time']:.1f}x"
+        else:
+            speedup_str = "N/A"
+        parity_str = "OK" if result["parity"] else ("FAIL" if result["parity"] is False else "N/A")
+        print(f"{result['size']:>12,} {python_str:>12} {rust_str:>12} {speedup_str:>10} {parity_str:>8}")
+
+    print("=" * 64)
 
 
 def main():
@@ -146,6 +245,12 @@ def main():
         "--sizes",
         default="1000,10000,100000",
         help="Comma-separated dataset sizes to benchmark",
+    )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=3,
+        help="Runs per implementation per size; the median is reported",
     )
     parser.add_argument(
         "--rust-bin",
@@ -160,109 +265,23 @@ def main():
     )
     args = parser.parse_args()
 
-    sizes = [int(s.strip()) for s in args.sizes.split(",")]
+    sizes = [int(size.strip()) for size in args.sizes.split(",")]
     rust_bin = args.rust_bin or find_rust_binary()
 
-    print("=" * 60)
+    print("=" * 64)
     print("Tweet Preprocessing Benchmark: Python vs Rust")
-    print("=" * 60)
+    print("=" * 64)
 
-    if rust_bin and rust_bin.exists():
-        print(f"Rust binary: {rust_bin}")
-    elif not args.skip_rust:
-        print("WARNING: Rust binary not found. Run 'cargo build --release' first.")
-        print("         Benchmarking Python only.\n")
-        args.skip_rust = True
-
-    results = []
-
-    for size in sizes:
-        print(f"\n{'-' * 60}")
-        print(f"Dataset size: {size:,} tweets")
-        print("-" * 60)
-
-        # Generate data
-        print("Generating synthetic data...")
-        tweets = generate_synthetic_tweets(size)
-
-        # Python benchmark
-        print("Running Python benchmark...")
-        py_results, py_time = benchmark_python(tweets)
-        py_throughput = size / py_time
-        print(f"  Python: {py_time:.3f}s ({py_throughput:,.0f} tweets/sec)")
-
-        rust_time = None
-        rust_throughput = None
-        parity = None
-
-        if not args.skip_rust:
-            # Write temp CSV for Rust
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(["text"])
-                for t in tweets:
-                    writer.writerow([t])
-                csv_path = Path(f.name)
-
-            parquet_path = csv_path.with_suffix(".parquet")
-
-            # Rust benchmark
-            print("Running Rust benchmark...")
-            rust_time, success = benchmark_rust(csv_path, parquet_path, rust_bin)
-
-            if success:
-                rust_throughput = size / rust_time
-                print(f"  Rust:   {rust_time:.3f}s ({rust_throughput:,.0f} tweets/sec)")
-
-                # Validate parity
-                print("Validating output parity...")
-                parity, mismatches = validate_parity(py_results, parquet_path)
-                if parity:
-                    print("  Parity: PASSED (outputs match)")
-                    speedup = py_time / rust_time
-                    print(f"  Speedup: {speedup:.1f}x")
-                elif mismatches is None:
-                    print("  Parity: ERROR (could not read Rust output)")
-                    print("  Speedup: N/A (parity check failed)")
-                else:
-                    print(f"  Parity: FAILED ({mismatches} mismatches)")
-                    print("  Speedup: N/A (parity check failed)")
-            else:
-                print("  Rust: FAILED")
-
-            # Cleanup
-            csv_path.unlink(missing_ok=True)
-            parquet_path.unlink(missing_ok=True)
-
-        results.append(
-            {
-                "size": size,
-                "python_time": py_time,
-                "python_throughput": py_throughput,
-                "rust_time": rust_time,
-                "rust_throughput": rust_throughput,
-                "parity": parity,
-            }
-        )
-
-    # Summary table
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print(f"{'Size':>12} {'Python (s)':>12} {'Rust (s)':>12} {'Speedup':>10} {'Parity':>8}")
-    print("-" * 60)
-
-    for r in results:
-        rust_str = f"{r['rust_time']:.3f}" if r["rust_time"] else "N/A"
-        # Only show speedup if parity passed
-        if r["rust_time"] and r["parity"]:
-            speedup_str = f"{r['python_time'] / r['rust_time']:.1f}x"
+    if not args.skip_rust:
+        if rust_bin and rust_bin.exists():
+            print(f"Rust binary: {rust_bin}")
         else:
-            speedup_str = "N/A"
-        parity_str = "OK" if r["parity"] else ("FAIL" if r["parity"] is False else "N/A")
-        print(f"{r['size']:>12,} {r['python_time']:>12.3f} {rust_str:>12} {speedup_str:>10} {parity_str:>8}")
+            print("WARNING: Rust binary not found. Run 'cargo build --release' first.")
+            print("         Benchmarking Python only.")
+            args.skip_rust = True
 
-    print("=" * 60)
+    results = [benchmark_size(size, rust_bin, args.repeat, args.skip_rust) for size in sizes]
+    print_summary(results, args.repeat)
 
 
 if __name__ == "__main__":

@@ -92,6 +92,23 @@ Also recorded in the same run:
 
 **Where these numbers come from.** They are the recorded output of [`notebooks/06_emotion_evaluation.ipynb`](notebooks/06_emotion_evaluation.ipynb), which writes each value into its own markdown cells and into `outputs/nb06_summary.json`. Notebook outputs are stripped before commit, so the markdown cells are the durable record. The run used an RTX 3070 with fp16, seed 42 (`SEED` in `src/training.py`).
 
+### Preprocessing throughput
+
+Both implementations run as a process over the same input file and write the same Parquet, so interpreter and binary startup are charged to both and the ratio compares the implementations rather than the measurement methods. Parity is checked between the two outputs and no speedup is reported when it fails.
+
+| Tweets | Python (s) | Rust (s) | Speedup | Parity |
+| --- | --- | --- | --- | --- |
+| 10,000 | 0.650 | 0.036 | 17.9x | OK |
+| 100,000 | 1.055 | 0.132 | 8.0x | OK |
+| 1,000,000 | 2.832 | 0.694 | 4.1x | OK |
+
+Median of 3 runs each, on Windows 11 with Python 3.14.3. One machine, so read the trend rather than the absolute numbers. The ratio falls as the input grows because Python's fixed interpreter and import cost is amortized away; 4.1x at a million rows is the closest of the three to the per-row difference. At that size Python moves 353,000 tweets per second and Rust 1,442,000.
+
+```bash
+cargo build --release --manifest-path rust/tweet-preprocessor/Cargo.toml
+python benchmarks/preprocessing_benchmark.py --sizes 10000,100000,1000000 --repeat 3
+```
+
 **Reproducing them is not a one-command job.** The fine-tuned checkpoint is gitignored, so the notebook retrains from scratch: it runs `train()` twice, once with class weights and once without for the ablation, then extracts frozen features for the baseline over the full train and test splits. That is two full fine-tuning runs, about 25 minutes each on an RTX 3070, plus the feature extraction. The next section describes what runs in minutes instead.
 
 ## Getting Started
@@ -155,7 +172,7 @@ Fastest way to see the project actually working, in order of cost:
 # 1. Fast test suite. No network, no GPU. Under a minute.
 python -m pytest tests/ -m "not slow" -q
 
-# 2. Python preprocessing throughput on synthetic tweets. Add the Rust binary
+# 2. Python preprocessing throughput on synthetic tweets. Build the Rust binary
 #    (see below) and drop --skip-rust to get the parity check and a speedup.
 python benchmarks/preprocessing_benchmark.py --sizes 1000 --skip-rust
 
@@ -271,11 +288,12 @@ Applies the model-input contract in parallel. Reads CSV or Parquet, writes Parqu
 
 ### `benchmarks/preprocessing_benchmark.py`
 
-Generates synthetic tweets from a fixed seed, times both implementations, and verifies their outputs match row by row. It refuses to report a speedup when parity fails.
+Generates synthetic tweets from a fixed seed, runs both implementations as processes over the same file, and verifies their outputs match row by row. It refuses to report a speedup when parity fails. The Python side is `benchmarks/python_preprocessor.py`, which mirrors the Rust CLI's arguments, formats and null policy so the two are comparable.
 
 | Flag | Description | Default |
 | --- | --- | --- |
 | `--sizes` | Comma-separated dataset sizes | `1000,10000,100000` |
+| `--repeat` | Runs per implementation per size; the median is reported | `3` |
 | `--rust-bin` | Path to the Rust binary | auto-detected |
 | `--skip-rust` | Benchmark Python only | off |
 
@@ -304,6 +322,7 @@ tweet-sentiment-analysis/
 │   └── batch_inference.py          # Streamed Parquet inference CLI
 ├── rust/tweet-preprocessor/        # Parallel preprocessing CLI (rayon + polars)
 ├── benchmarks/                     # Python vs Rust throughput and parity check
+│   └── python_preprocessor.py      # The Python side, as a CLI with the Rust binary's contract
 ├── tests/                          # 71 pytest tests, one file per source module
 ├── notebooks/                      # EDA, tokenization, evaluation, emotion comparison
 ├── docs/adr/                       # Architecture decision records, indexed above
@@ -333,7 +352,6 @@ tweet-sentiment-analysis/
 
 ### Pending
 
-- Python vs Rust benchmark figures measured and published (the old numbers were measured on a preprocessing contract the CLI no longer implements, and were removed rather than restated)
 - REST API with FastAPI (issue #36) and demo UI (issue #37)
 - Docker packaging (issue #38)
 - Pinned model revision and a lockfile for full reproducibility (issue #66)
@@ -342,7 +360,7 @@ tweet-sentiment-analysis/
 
 - **The fine-tuned checkpoint is not in the repository.** It lands in `outputs/finetuned-model`, which is gitignored, so the Results numbers cannot be reproduced without retraining. That needs a GPU. The values are recorded in notebook 06 instead.
 - **Training is GPU-bound.** About 25 minutes on an RTX 3070 with fp16. A CPU run was estimated at roughly 25 hours and abandoned; the `--max_train_samples` and `--max_steps` flags exist so the pipeline can still be exercised on CPU.
-- **No published throughput numbers.** The Rust CLI is faster than the Python loop, but the figures that were once published measured a heavier cleaning contract that this CLI no longer implements. Run `benchmarks/preprocessing_benchmark.py` for numbers on your own machine.
+- **The throughput figures come from one machine.** The table under Results is a median of 3 runs on a single Windows laptop, not a benchmark across hardware. Run `benchmarks/preprocessing_benchmark.py` for numbers on your own.
 - **The Rust CLI reads CSV and Parquet only.** JSON support was dropped over a Polars 0.46 API incompatibility.
 - **Batch inference has never been run at million-row scale.** It streams in chunks so memory does not grow with the input, and that is what the tests cover; the throughput at that scale is unmeasured.
 - **Dependencies are pinned but not locked.** `requirements.txt` pins direct dependencies only, and the model revision is not pinned, so a future Hugging Face upload could shift results (issue #66).
